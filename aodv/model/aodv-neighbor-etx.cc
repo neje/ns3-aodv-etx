@@ -116,7 +116,7 @@ NeighborEtx::FillLppCntData (LppHeader &lppHeader)
 }
 
 bool 
-NeighborEtx::Update (Ipv4Address addr, uint8_t lppTimeStamp, uint8_t lppReverse)
+NeighborEtx::UpdateNeighborEtx (Ipv4Address addr, uint8_t lppTimeStamp, uint8_t lppReverse)
 {
   std::map<Ipv4Address, Etx>::iterator i = m_neighborEtx.find (addr);
   if (i == m_neighborEtx.end ())
@@ -148,6 +148,26 @@ NeighborEtx::CalculateBinaryShiftedEtx (Etx etxStruct)
   //NS_LOG_UNCOND ("ETX binary: " << etx);
   return etx;
 }
+
+uint32_t 
+NeighborEtx::ReadEtxForNeighbor (Ipv4Address addr)
+{
+  uint32_t etx;
+  std::map<Ipv4Address, Etx>::iterator i = m_neighborEtx.find (addr);
+  if (i == m_neighborEtx.end ())
+    {
+      // No address, ETX -> oo (= UINT32_MAX)
+      etx = UINT32_MAX;
+      return etx;
+    }
+  else
+    {
+      // Address found, calculate and return current ETX value
+      return CalculateBinaryShiftedEtx (i->second);
+    }
+}
+
+
 
 } // namespace aodv
 } // namespace ns3

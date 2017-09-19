@@ -1205,7 +1205,7 @@ RoutingProtocol::RecvLpp (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address src)
           break;
         }
     } 
-  m_nbEtx.Update (src, lppTimeStamp, lppReverse);
+  m_nbEtx.UpdateNeighborEtx (src, lppTimeStamp, lppReverse);
 }
 
 void
@@ -1242,6 +1242,19 @@ RoutingProtocol::RecvRequest (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address s
   // Increment RREQ hop count
   uint8_t hop = rreqHeader.GetHopCount () + 1;
   rreqHeader.SetHopCount (hop);
+  
+  // TODO: Add RREQ ETX metrix
+  uint32_t etx = m_nbEtx.ReadEtxForNeighbor (origin);
+  if (etx == NeighborEtx::EtxMaxValue ())
+    {
+      NS_LOG_UNCOND ("ETX -> oo !!! ");
+      rreqHeader.SetEtxMetrix (etx);
+    }
+  else
+    {
+      rreqHeader.SetEtxMetrix (etx + rreqHeader.GetEtxMetrix ());
+    }
+  
 
   /*
    *  When the reverse route is created or updated, the following actions on the route are also carried out:
