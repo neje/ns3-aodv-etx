@@ -24,6 +24,9 @@
  *
  * Authors: Elena Buchatskaia <borovkovaes@iitp.ru>
  *          Pavel Boyko <boyko@iitp.ru>
+ *
+ * Modified by: Nenad Jevtic <n.jevtic@sf.bg.ac.rs>, <nen.jevtc@gmail.com>
+ *              Marija Malnar <m.malnar@sf.bg.ac.rs> 
  */
 #ifndef AODV_RTABLE_H
 #define AODV_RTABLE_H
@@ -62,7 +65,7 @@ public:
   /// c-to
   RoutingTableEntry (Ptr<NetDevice> dev = 0,Ipv4Address dst = Ipv4Address (), bool vSeqNo = false, uint32_t m_seqNo = 0,
                      Ipv4InterfaceAddress iface = Ipv4InterfaceAddress (), uint16_t  hops = 0,
-                     Ipv4Address nextHop = Ipv4Address (), Time lifetime = Simulator::Now ());
+                     Ipv4Address nextHop = Ipv4Address (), Time lifetime = Simulator::Now (), uint32_t etx = 0);
 
   ~RoutingTableEntry ();
 
@@ -129,6 +132,10 @@ public:
   bool IsUnidirectional () const { return m_blackListState; }
   void SetBalcklistTimeout (Time t) { m_blackListTimeout = t; }
   Time GetBlacklistTimeout () const { return m_blackListTimeout; }
+
+  uint32_t GetEtx () const { return m_etx10000; }
+  void SetEtx (uint32_t etx) { m_etx10000 = etx; }
+  
   /// RREP_ACK timer
   Timer m_ackTimer;
 
@@ -172,12 +179,15 @@ private:
   std::vector<Ipv4Address> m_precursorList;
   /// When I can send another request
   Time m_routeRequestTimout;
-  /// Number of route requests
+  /// Number of route requests (actually number of request retries for full range of hops = net diametar)
   uint8_t m_reqCount;
   /// Indicate if this entry is in "blacklist"
   bool m_blackListState;
   /// Time for which the node is put into the blacklist
   Time m_blackListTimeout;
+  
+  /// ETX metrix field, since this field is integer float value of etx is multiplied by 10000 and rounded to obtain resolution of 4 decimal places 
+  uint32_t m_etx10000;
 };
 
 /**

@@ -22,7 +22,7 @@
  *      AODV-UU implementation by Erik Nordström of Uppsala University
  *      http://core.it.uu.se/core/index.php/AODV-UU
  *
- * Authors: Nenad Jevtic <n.jevtic@sf.bg.ac.rs>
+ * Authors: Nenad Jevtic <n.jevtic@sf.bg.ac.rs>, <nen.jevtc@gmail.com>
  *          Marija Malnar <m.malnar@sf.bg.ac.rs>
  */
  
@@ -150,7 +150,7 @@ NeighborEtx::CalculateBinaryShiftedEtx (Etx etxStruct)
 }
 
 uint32_t 
-NeighborEtx::ReadEtxForNeighbor (Ipv4Address addr)
+NeighborEtx::GetEtxForNeighbor (Ipv4Address addr)
 {
   uint32_t etx;
   std::map<Ipv4Address, Etx>::iterator i = m_neighborEtx.find (addr);

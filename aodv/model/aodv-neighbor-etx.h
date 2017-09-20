@@ -22,7 +22,7 @@
  *      AODV-UU implementation by Erik Nordström of Uppsala University
  *      http://core.it.uu.se/core/index.php/AODV-UU
  *
- * Authors: Nenad Jevtic <n.jevtic@sf.bg.ac.rs>
+ * Authors: Nenad Jevtic <n.jevtic@sf.bg.ac.rs>, <nen.jevtc@gmail.com>
  *          Marija Malnar <m.malnar@sf.bg.ac.rs>
  */
  
@@ -65,7 +65,7 @@ public:
   // Look for neighbor and return its ETX, return etx ->oo (max of uint32_t) if there
   // is no neigbor in the map (this is unlikely since it will receive at least
   // one LPP packet from this neighbor and therefore neighbor will be in the map).
-  uint32_t ReadEtxForNeighbor (Ipv4Address addr);
+  uint32_t GetEtxForNeighbor (Ipv4Address addr);
   // Return max posible ETX value, it is max (uint32_t)
   static uint32_t EtxMaxValue () { return UINT32_MAX; };
 private:

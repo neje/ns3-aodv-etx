@@ -24,6 +24,9 @@
  *
  * Authors: Elena Buchatskaia <borovkovaes@iitp.ru>
  *          Pavel Boyko <boyko@iitp.ru>
+ *
+ * Modified by: Nenad Jevtic <n.jevtic@sf.bg.ac.rs>, <nen.jevtic@gmail.com>
+ *              Marija Malnar <m.malnar@sf.bg.ac.rs>
  */
 #ifndef AODVROUTINGPROTOCOL_H
 #define AODVROUTINGPROTOCOL_H
@@ -40,6 +43,8 @@
 #include "ns3/ipv4-interface.h"
 #include "ns3/ipv4-l3-protocol.h"
 #include <map>
+#include "aodv-neighbor-etx.h"
+
 
 namespace ns3
 {
@@ -84,6 +89,8 @@ public:
   void SetGratuitousReplyFlag (bool f) { m_gratuitousReply = f; }
   void SetHelloEnable (bool f) { m_enableHello = f; }
   bool GetHelloEnable () const { return m_enableHello; }
+  void SetEtxEnable (bool f) { m_enableEtx = f; }
+  bool GetEtxEnable () const { return m_enableEtx; }
   void SetBroadcastEnable (bool f) { m_enableBroadcast = f; }
   bool GetBroadcastEnable () const { return m_enableBroadcast; }
 
@@ -167,6 +174,9 @@ private:
   uint16_t m_rreqCount;
   /// Number of RERRs used for RERR rate control
   uint16_t m_rerrCount;
+  
+  /// ETX for neighbors
+  NeighborEtx m_nbEtx;
 
 private:
   /// Start protocol operation
@@ -216,6 +226,8 @@ private:
   void RecvReplyAck (Ipv4Address neighbor);
   /// Receive RERR from node with address src
   void RecvError (Ptr<Packet> p, Ipv4Address src);
+  /// Receive LPP
+  void RecvLpp (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address src);
   //\}
 
   ///\name Send
@@ -224,6 +236,8 @@ private:
   void SendPacketFromQueue (Ipv4Address dst, Ptr<Ipv4Route> route);
   /// Send hello
   void SendHello ();
+  /// Send link probe packet
+  void SendLpp ();
   /// Send RREQ
   void SendRequest (Ipv4Address dst);
   /// Send RREP
@@ -250,6 +264,16 @@ private:
   /// @}
 
   void SendTo (Ptr<Socket> socket, Ptr<Packet> packet, Ipv4Address destination);
+
+  /// Enable link probe packets for ETX metrix
+  bool m_enableEtx;
+  /// LPP interval
+  Time m_lppInterval;
+  /// Link probe packet timer
+  Timer m_lppTimer;
+  /// Schedule next send of link probe packet
+  void LppTimerExpire ();
+
 
   /// Hello timer
   Timer m_htimer;

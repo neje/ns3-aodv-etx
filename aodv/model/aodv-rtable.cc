@@ -24,6 +24,9 @@
  *
  * Authors: Elena Buchatskaia <borovkovaes@iitp.ru>
  *          Pavel Boyko <boyko@iitp.ru>
+ *
+ * Modified by: Nenad Jevtic <n.jevtic@sf.bg.ac.rs>, <nen.jevtc@gmail.com>
+ *              Marija Malnar <m.malnar@sf.bg.ac.rs> 
  */
 
 #include "aodv-rtable.h"
@@ -45,11 +48,11 @@ namespace aodv
  */
 
 RoutingTableEntry::RoutingTableEntry (Ptr<NetDevice> dev, Ipv4Address dst, bool vSeqNo, uint32_t seqNo,
-                                      Ipv4InterfaceAddress iface, uint16_t hops, Ipv4Address nextHop, Time lifetime) :
+                                      Ipv4InterfaceAddress iface, uint16_t hops, Ipv4Address nextHop, Time lifetime, uint32_t etx) :
   m_ackTimer (Timer::CANCEL_ON_DESTROY),
   m_validSeqNo (vSeqNo), m_seqNo (seqNo), m_hops (hops),
   m_lifeTime (lifetime + Simulator::Now ()), m_iface (iface), m_flag (VALID),
-  m_reqCount (0), m_blackListState (false), m_blackListTimeout (Simulator::Now ())
+  m_reqCount (0), m_blackListState (false), m_blackListTimeout (Simulator::Now ()), m_etx10000 (etx)
 {
   m_ipv4Route = Create<Ipv4Route> ();
   m_ipv4Route->SetDestination (dst);
@@ -184,7 +187,8 @@ RoutingTableEntry::Print (Ptr<OutputStreamWrapper> stream) const
   *os << std::setiosflags (std::ios::fixed) << 
   std::setiosflags (std::ios::left) << std::setprecision (2) <<
   std::setw (14) << (m_lifeTime - Simulator::Now ()).GetSeconds ();
-  *os << "\t" << m_hops << "\n";
+  *os << "\t" << m_hops;
+  *os << "\t" << m_etx10000 << "\n";
 }
 
 /*

@@ -24,6 +24,9 @@
  *
  * Authors: Elena Buchatskaia <borovkovaes@iitp.ru>
  *          Pavel Boyko <boyko@iitp.ru>
+ *
+ * Modified by: Nenad Jevtic <n.jevtic@sf.bg.ac.rs>, <nen.jevtic@gmail.com>
+ *              Marija Malnar <m.malnar@sf.bg.ac.rs>
  */
 #define NS_LOG_APPEND_CONTEXT                                   \
   if (m_ipv4) { std::clog << "[node " << m_ipv4->GetObject<Node> ()->GetId () << "] "; } 
@@ -152,6 +155,9 @@ RoutingProtocol::RoutingProtocol () :
   m_nb (m_helloInterval),
   m_rreqCount (0),
   m_rerrCount (0),
+  m_enableEtx (true),
+  m_lppInterval (Seconds (1)),
+  m_lppTimer (Timer::CANCEL_ON_DESTROY),
   m_htimer (Timer::CANCEL_ON_DESTROY),
   m_rreqRateLimitTimer (Timer::CANCEL_ON_DESTROY),
   m_rerrRateLimitTimer (Timer::CANCEL_ON_DESTROY),
@@ -239,7 +245,7 @@ RoutingProtocol::GetTypeId (void)
                    MakeTimeAccessor (&RoutingProtocol::m_pathDiscoveryTime),
                    MakeTimeChecker ())
     .AddAttribute ("MaxQueueLen", "Maximum number of packets that we allow a routing protocol to buffer.",
-                   UintegerValue (64),
+                   UintegerValue (1024), //originaly it was 64
                    MakeUintegerAccessor (&RoutingProtocol::SetMaxQueueLen,
                                          &RoutingProtocol::GetMaxQueueLen),
                    MakeUintegerChecker<uint32_t> ())
@@ -277,6 +283,15 @@ RoutingProtocol::GetTypeId (void)
                    StringValue ("ns3::UniformRandomVariable"),
                    MakePointerAccessor (&RoutingProtocol::m_uniformRandomVariable),
                    MakePointerChecker<UniformRandomVariable> ())
+    .AddAttribute ("EnableEtx", "Enable ETX metrix.",
+                   BooleanValue (true),
+                   MakeBooleanAccessor (&RoutingProtocol::SetEtxEnable,
+                                        &RoutingProtocol::GetEtxEnable),
+                   MakeBooleanChecker ())
+    .AddAttribute ("LppInterval", "Link probe packet emission interval.",
+                   TimeValue (Seconds (1)),
+                   MakeTimeAccessor (&RoutingProtocol::m_lppInterval),
+                   MakeTimeChecker ())
   ;
   return tid;
 }
@@ -352,7 +367,6 @@ RoutingProtocol::Start ()
   m_rerrRateLimitTimer.SetFunction (&RoutingProtocol::RerrRateLimitTimerExpire,
                                     this);
   m_rerrRateLimitTimer.Schedule (Seconds (1));
-
 }
 
 Ptr<Ipv4Route>
@@ -1063,12 +1077,15 @@ void
 RoutingProtocol::RecvAodv (Ptr<Socket> socket)
 {
   NS_LOG_FUNCTION (this << socket);
+  
+  // Get source address (this is neighbor's IP) and packet from socket 
   Address sourceAddress;
   Ptr<Packet> packet = socket->RecvFrom (sourceAddress);
   InetSocketAddress inetSourceAddr = InetSocketAddress::ConvertFrom (sourceAddress);
   Ipv4Address sender = inetSourceAddr.GetIpv4 ();
+  
+  // Get reciver address from socket, this is my IP
   Ipv4Address receiver;
-
   if (m_socketAddresses.find (socket) != m_socketAddresses.end ())
     {
       receiver = m_socketAddresses[socket].GetLocal ();
@@ -1082,8 +1099,11 @@ RoutingProtocol::RecvAodv (Ptr<Socket> socket)
       NS_ASSERT_MSG (false, "Received a packet from an unknown socket");
     }
   NS_LOG_DEBUG ("AODV node " << this << " received a AODV packet from " << sender << " to " << receiver);
-
+  
+  // Add new or update existing route to neighbor (but be aware that there is no valid seq no. at this point!)
+  // Update route with new etx value
   UpdateRouteToNeighbor (sender, receiver);
+  
   TypeHeader tHeader (AODVTYPE_RREQ);
   packet->RemoveHeader (tHeader);
   if (!tHeader.IsValid ())
@@ -1112,6 +1132,11 @@ RoutingProtocol::RecvAodv (Ptr<Socket> socket)
       {
         RecvReplyAck (sender);
         break;
+      }    
+    case AODVTYPE_LPP:
+      {
+        RecvLpp (packet, receiver, sender);
+        break;
       }
     }
 }
@@ -1135,6 +1160,7 @@ RoutingProtocol::UpdateRouteLifeTime (Ipv4Address addr, Time lifetime)
   return false;
 }
 
+// Nenad: added etx
 void
 RoutingProtocol::UpdateRouteToNeighbor (Ipv4Address sender, Ipv4Address receiver)
 {
@@ -1143,9 +1169,11 @@ RoutingProtocol::UpdateRouteToNeighbor (Ipv4Address sender, Ipv4Address receiver
   if (!m_routingTable.LookupRoute (sender, toNeighbor))
     {
       Ptr<NetDevice> dev = m_ipv4->GetNetDevice (m_ipv4->GetInterfaceForAddress (receiver));
+      // Cannot update seqno in this phase (it will be updated later)
       RoutingTableEntry newEntry (/*device=*/ dev, /*dst=*/ sender, /*know seqno=*/ false, /*seqno=*/ 0,
                                               /*iface=*/ m_ipv4->GetAddress (m_ipv4->GetInterfaceForAddress (receiver), 0),
-                                              /*hops=*/ 1, /*next hop=*/ sender, /*lifetime=*/ m_activeRouteTimeout);
+                                              /*hops=*/ 1, /*next hop=*/ sender, /*lifetime=*/ m_activeRouteTimeout, 
+                                              /*etx*/ m_nbEtx.GetEtxForNeighbor (sender));
       m_routingTable.AddRoute (newEntry);
     }
   else
@@ -1154,20 +1182,61 @@ RoutingProtocol::UpdateRouteToNeighbor (Ipv4Address sender, Ipv4Address receiver
       if (toNeighbor.GetValidSeqNo () && (toNeighbor.GetHop () == 1) && (toNeighbor.GetOutputDevice () == dev))
         {
           toNeighbor.SetLifeTime (std::max (m_activeRouteTimeout, toNeighbor.GetLifeTime ()));
+          toNeighbor.SetEtx (m_nbEtx.GetEtxForNeighbor (sender));
         }
       else
         {
+          // Cannot update seqno in this phase (it will be updated later)
           RoutingTableEntry newEntry (/*device=*/ dev, /*dst=*/ sender, /*know seqno=*/ false, /*seqno=*/ 0,
                                                   /*iface=*/ m_ipv4->GetAddress (m_ipv4->GetInterfaceForAddress (receiver), 0),
-                                                  /*hops=*/ 1, /*next hop=*/ sender, /*lifetime=*/ std::max (m_activeRouteTimeout, toNeighbor.GetLifeTime ()));
+                                                  /*hops=*/ 1, /*next hop=*/ sender, 
+                                                  /*lifetime=*/ std::max (m_activeRouteTimeout, toNeighbor.GetLifeTime ()),
+                                                  /*etx*/ m_nbEtx.GetEtxForNeighbor (sender));
           m_routingTable.Update (newEntry);
         }
     }
 
 }
 
+// Added by Nenad
+void
+RoutingProtocol::RecvLpp (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address src)
+{
+  NS_LOG_FUNCTION (this);
+  
+  //NS_LOG_UNCOND ("LPP receive: " << Simulator::Now ().GetSeconds () << " - sender = " << src << ", receiver = " << receiver);
+  LppHeader lppHeader;
+  p->RemoveHeader (lppHeader);
+  Ipv4Address origin = lppHeader.GetOriginAddress ();
+  NS_ASSERT (origin == src); // Neighbor from which the packet is received is always originator of LPP packet
+  uint8_t lppTimeStamp = lppHeader.GetLppId ();
+  uint16_t numNeighbors = lppHeader.GetNumberNeighbors ();
+  std::pair<Ipv4Address, uint8_t> un;
+  
+  // Search for my IP address in LPP packet header
+  uint8_t lppReverse = 0; // if there is no my address in the packet header lpp reverse should be 0
+  for (uint16_t j=0; j<numNeighbors; ++j)
+    {
+      lppHeader.RemoveFromNeighborsList (un);
+      if (un.first == receiver) // is it my IP address?
+        {
+          lppReverse = un.second;
+          break;
+        }
+    } 
+  // Add new or udate existing etx entry for neighbor with IP address "src".
+  // LPP count is updated based on lppTime stamp received in packet header.
+  // LPP reverse count is updated from list provided in LPP packet header.
+  m_nbEtx.UpdateNeighborEtx (src, lppTimeStamp, lppReverse);
+  // Since ETX is changed we should udate route entry for neighbor
+  UpdateRouteToNeighbor (src, receiver);
+  
+  // TODO: use LPP as HELLO ?
+}
+
 void
 RoutingProtocol::RecvRequest (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address src)
+// src is neigbor's IP
 {
   NS_LOG_FUNCTION (this);
   RreqHeader rreqHeader;
@@ -1185,21 +1254,42 @@ RoutingProtocol::RecvRequest (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address s
     }
 
   uint32_t id = rreqHeader.GetId ();
-  Ipv4Address origin = rreqHeader.GetOrigin ();
-
-  /*
-   *  Node checks to determine whether it has received a RREQ with the same Originator IP Address and RREQ ID.
-   *  If such a RREQ has been received, the node silently discards the newly received RREQ.
-   */
-  if (m_rreqIdCache.IsDuplicate (origin, id))
-    {
-      NS_LOG_DEBUG ("Ignoring RREQ due to duplicate");
-      return;
-    }
+  Ipv4Address origin = rreqHeader.GetOrigin (); // Originator is not always neighbor (RREQ forwarding)
 
   // Increment RREQ hop count
   uint8_t hop = rreqHeader.GetHopCount () + 1;
   rreqHeader.SetHopCount (hop);
+  
+  // Add in RREQ ETX metrix for last hop from neighbor to this node
+  // Now RREQ contains ETX from origin to this node
+  uint32_t etx = m_nbEtx.GetEtxForNeighbor (src); // src is always neighbor, origin maybe isn't
+  if (etx == NeighborEtx::EtxMaxValue ())
+    { // this should never happen because neighbor has limited ETX, but it is better to check!
+      NS_LOG_UNCOND ("ETX -> oo !!! "); 
+      rreqHeader.SetEtx (etx);
+    }
+  else
+    {
+      rreqHeader.SetEtx (etx + rreqHeader.GetEtx ());
+    }
+
+  /*
+   *  Node checks to determine whether it has received a RREQ with the same Originator IP Address and RREQ ID.
+   *  If such a RREQ has been received, the node silently discards the newly received RREQ.
+   *  This is modified to include ETX, so RREQ is discarded only if etx of previously received RREQ is beter (smaller) then this one
+   */
+  if (m_rreqIdCache.IsDuplicate (origin, id))
+    {
+      RoutingTableEntry rte;
+      if (m_routingTable.LookupRoute (origin, rte))
+        {
+          if (rte.GetEtx () <= rreqHeader.GetEtx ())
+            {
+              NS_LOG_DEBUG ("Ignoring RREQ due to duplicate");
+              return;
+            }
+        }
+    }
 
   /*
    *  When the reverse route is created or updated, the following actions on the route are also carried out:
@@ -1210,22 +1300,24 @@ RoutingProtocol::RecvRequest (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address s
    *  4. the hop count is copied from the Hop Count in the RREQ message;
    *  5. the Lifetime is set to be the maximum of (ExistingLifetime, MinimalLifetime), where
    *     MinimalLifetime = current time + 2*NetTraversalTime - 2*HopCount*NodeTraversalTime
+   *  6. ETX is copied from the RREQ message
    */
   RoutingTableEntry toOrigin;
   if (!m_routingTable.LookupRoute (origin, toOrigin))
-    {
+    { // There is no route in the routing table
       Ptr<NetDevice> dev = m_ipv4->GetNetDevice (m_ipv4->GetInterfaceForAddress (receiver));
       RoutingTableEntry newEntry (/*device=*/ dev, /*dst=*/ origin, /*validSeno=*/ true, /*seqNo=*/ rreqHeader.GetOriginSeqno (),
                                               /*iface=*/ m_ipv4->GetAddress (m_ipv4->GetInterfaceForAddress (receiver), 0), /*hops=*/ hop,
-                                              /*nextHop*/ src, /*timeLife=*/ Time ((2 * m_netTraversalTime - 2 * hop * m_nodeTraversalTime)));
+                                              /*nextHop*/ src, /*timeLife=*/ Time ((2 * m_netTraversalTime - 2 * hop * m_nodeTraversalTime)),
+                                              /*etx*/ rreqHeader.GetEtx ());
       m_routingTable.AddRoute (newEntry);
     }
   else
-    {
+    { // Update existing route
       if (toOrigin.GetValidSeqNo ())
-        {
+        { 
           if (int32_t (rreqHeader.GetOriginSeqno ()) - int32_t (toOrigin.GetSeqNo ()) > 0)
-            toOrigin.SetSeqNo (rreqHeader.GetOriginSeqno ());
+            toOrigin.SetSeqNo (rreqHeader.GetOriginSeqno ()); // update sequential number with newer one
         }
       else
         toOrigin.SetSeqNo (rreqHeader.GetOriginSeqno ());
@@ -1236,31 +1328,33 @@ RoutingProtocol::RecvRequest (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address s
       toOrigin.SetHop (hop);
       toOrigin.SetLifeTime (std::max (Time (2 * m_netTraversalTime - 2 * hop * m_nodeTraversalTime),
                                       toOrigin.GetLifeTime ()));
+      toOrigin.SetEtx (rreqHeader.GetEtx ());
       m_routingTable.Update (toOrigin);
       //m_nb.Update (src, Time (AllowedHelloLoss * HelloInterval));
     }
 
-
   RoutingTableEntry toNeighbor;
   if (!m_routingTable.LookupRoute (src, toNeighbor))
-    {
+    { // Nenad: No rute in routing table, this should never happen since the route for neighbor is created in RecvAodv ()
       NS_LOG_DEBUG ("Neighbor:" << src << " not found in routing table. Creating an entry"); 
       Ptr<NetDevice> dev = m_ipv4->GetNetDevice (m_ipv4->GetInterfaceForAddress (receiver));
-      RoutingTableEntry newEntry (dev, src, false, rreqHeader.GetOriginSeqno (),
+      RoutingTableEntry newEntry (dev, src, false, rreqHeader.GetOriginSeqno (), /* Nenad: not clear to me why seqno is not valid? */
                                               m_ipv4->GetAddress (m_ipv4->GetInterfaceForAddress (receiver), 0),
-                                              1, src, m_activeRouteTimeout);
+                                              1, src, m_activeRouteTimeout, 
+                                              /*etx*/ m_nbEtx.GetEtxForNeighbor (src));
       m_routingTable.AddRoute (newEntry);
     }
   else
-    {
+    { // Update existing route
       toNeighbor.SetLifeTime (m_activeRouteTimeout);
-      toNeighbor.SetValidSeqNo (false);
+      toNeighbor.SetValidSeqNo (false); // Nenad: not clear to me why seqno is not valid?
       toNeighbor.SetSeqNo (rreqHeader.GetOriginSeqno ()); 
       toNeighbor.SetFlag (VALID);
       toNeighbor.SetOutputDevice (m_ipv4->GetNetDevice (m_ipv4->GetInterfaceForAddress (receiver)));
       toNeighbor.SetInterface (m_ipv4->GetAddress (m_ipv4->GetInterfaceForAddress (receiver), 0));
       toNeighbor.SetHop (1);
       toNeighbor.SetNextHop (src);
+      toNeighbor.SetEtx (m_nbEtx.GetEtxForNeighbor (src));
       m_routingTable.Update (toNeighbor);
     }
   m_nb.Update (src, Time (m_allowedHelloLoss * m_helloInterval));
@@ -1729,6 +1823,7 @@ RoutingProtocol::RouteRequestTimerExpire (Ipv4Address dst)
       m_addressReqTimer.erase (dst);
       m_routingTable.DeleteRoute (dst);
       m_queue.DropPacketWithDst (dst);
+      //TODO: ? delete ETX metrix ?
     }
 }
 
@@ -1766,6 +1861,16 @@ RoutingProtocol::RerrRateLimitTimerExpire ()
   NS_LOG_FUNCTION (this);
   m_rerrCount = 0;
   m_rerrRateLimitTimer.Schedule (Seconds (1));
+}
+
+void
+RoutingProtocol::LppTimerExpire ()
+{
+  NS_LOG_FUNCTION (this);
+  //NS_LOG_UNCOND ("LPP timer expired at: " << Simulator::Now ().GetSeconds () << " s.");
+  m_lppTimer.Cancel ();
+  m_lppTimer.Schedule (m_lppInterval);
+  SendLpp ();
 }
 
 void
@@ -1808,7 +1913,51 @@ RoutingProtocol::SendHello ()
         { 
           destination = iface.GetBroadcast ();
         }
-      Time jitter = Time (MilliSeconds (m_uniformRandomVariable->GetInteger (0, 10)));
+      Time jitter = Time (MicroSeconds (m_uniformRandomVariable->GetInteger (0, 10000)));
+      Simulator::Schedule (jitter, &RoutingProtocol::SendTo, this , socket, packet, destination);
+    }
+}
+
+void
+RoutingProtocol::SendLpp ()
+{
+  NS_LOG_FUNCTION (this);
+  // increment time stamp and clear oldest time stamp
+  m_nbEtx.GotoNextTimeStampAndClearOldest ();
+  
+  // send lpp counts from past 10 secunds (not including current and oldest)
+  for (std::map<Ptr<Socket>, Ipv4InterfaceAddress>::const_iterator j = m_socketAddresses.begin (); j != m_socketAddresses.end (); ++j)
+    {
+      Ptr<Socket> socket = j->first;
+      Ipv4InterfaceAddress iface = j->second;
+      LppHeader lppHeader;
+      //set fields of LPP header
+      lppHeader.SetLppId (m_nbEtx.GetLppTimeStamp ());
+      lppHeader.SetOriginAddress (iface.GetLocal ());
+      //NS_LOG_UNCOND ("LPP send: time=" << Simulator::Now ().GetSeconds () << " s, " << "source=" << iface.GetLocal ());
+      m_nbEtx.FillLppCntData (lppHeader);
+
+      Ptr<Packet> packet = Create<Packet> ();
+      SocketIpTtlTag tag;
+      tag.SetTtl (1);
+      packet->AddPacketTag (tag);
+      packet->AddHeader (lppHeader);
+      TypeHeader tHeader (AODVTYPE_LPP);
+      packet->AddHeader (tHeader);
+      // Send to all-hosts broadcast if on /32 addr, subnet-directed otherwise
+      Ipv4Address destination;
+      if (iface.GetMask () == Ipv4Mask::GetOnes ())
+        {
+          destination = Ipv4Address ("255.255.255.255");
+        }
+      else
+        { 
+          destination = iface.GetBroadcast ();
+        }
+      // TODO: LPP is new introduced but also broadcast packet 
+      //m_lastBcastTime = Simulator::Now ();
+      Time jitter = Time (MicroSeconds (m_uniformRandomVariable->GetInteger (0, 10000)));
+      // NS_LOG_UNCOND ("Jitter = " << jitter);  
       Simulator::Schedule (jitter, &RoutingProtocol::SendTo, this , socket, packet, destination);
     }
 }
@@ -2057,9 +2206,16 @@ RoutingProtocol::DoInitialize (void)
     {
       m_htimer.SetFunction (&RoutingProtocol::HelloTimerExpire, this);
       startTime = m_uniformRandomVariable->GetInteger (0, 100);
-      NS_LOG_DEBUG ("Starting at time " << startTime << "ms");
+      NS_LOG_DEBUG ("Hello timer starting at time " << startTime << "ms");
       m_htimer.Schedule (MilliSeconds (startTime));
     }
+  if (m_enableEtx)
+    {
+      m_lppTimer.SetFunction (&RoutingProtocol::LppTimerExpire, this);
+      startTime = m_uniformRandomVariable->GetInteger (0, 100);
+      NS_LOG_DEBUG ("LPP timer starting at time " << startTime << "ms");
+      m_lppTimer.Schedule (MilliSeconds (startTime));
+    }  
   Ipv4RoutingProtocol::DoInitialize ();
 }
 
