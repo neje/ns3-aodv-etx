@@ -82,7 +82,6 @@ TypeHeader::Deserialize (Buffer::Iterator start)
     case AODVTYPE_RREP:
     case AODVTYPE_RERR:
     case AODVTYPE_RREP_ACK:
-    case AODVTYPE_LPP:
       {
         m_type = (MessageType) type;
         break;
@@ -119,11 +118,6 @@ TypeHeader::Print (std::ostream &os) const
       {
         os << "RREP_ACK";
         break;
-      }    
-    case AODVTYPE_LPP:
-      {
-        os << "LPP";
-        break;
       }
     default:
       os << "UNKNOWN_TYPE";
@@ -147,9 +141,9 @@ operator<< (std::ostream & os, TypeHeader const & h)
 // RREQ
 //-----------------------------------------------------------------------------
 RreqHeader::RreqHeader (uint8_t flags, uint8_t reserved, uint8_t hopCount, uint32_t requestID, Ipv4Address dst,
-                        uint32_t dstSeqNo, Ipv4Address origin, uint32_t originSeqNo, uint32_t etxMetrix) :
+                        uint32_t dstSeqNo, Ipv4Address origin, uint32_t originSeqNo) :
   m_flags (flags), m_reserved (reserved), m_hopCount (hopCount), m_requestID (requestID), m_dst (dst),
-  m_dstSeqNo (dstSeqNo), m_origin (origin),  m_originSeqNo (originSeqNo), m_etxMetrix (etxMetrix)
+  m_dstSeqNo (dstSeqNo), m_origin (origin),  m_originSeqNo (originSeqNo)
 {
 }
 
@@ -175,7 +169,7 @@ RreqHeader::GetInstanceTypeId () const
 uint32_t
 RreqHeader::GetSerializedSize () const
 {
-  return (23+4);
+  return 23;
 }
 
 void
@@ -189,7 +183,6 @@ RreqHeader::Serialize (Buffer::Iterator i) const
   i.WriteHtonU32 (m_dstSeqNo);
   WriteTo (i, m_origin);
   i.WriteHtonU32 (m_originSeqNo);
-  i.WriteHtonU32 (m_etxMetrix);
 }
 
 uint32_t
@@ -204,7 +197,6 @@ RreqHeader::Deserialize (Buffer::Iterator start)
   m_dstSeqNo = i.ReadNtohU32 ();
   ReadFrom (i, m_origin);
   m_originSeqNo = i.ReadNtohU32 ();
-  m_etxMetrix = i.ReadNtohU32 ();
 
   uint32_t dist = i.GetDistanceFrom (start);
   NS_ASSERT (dist == GetSerializedSize ());
@@ -217,7 +209,6 @@ RreqHeader::Print (std::ostream &os) const
   os << "RREQ ID " << m_requestID << " destination: ipv4 " << m_dst
      << " sequence number " << m_dstSeqNo << " source: ipv4 "
      << m_origin << " sequence number " << m_originSeqNo
-     << " ETX metrix " << m_etxMetrix
      << " flags:" << " Gratuitous RREP " << (*this).GetGratiousRrep ()
      << " Destination only " << (*this).GetDestinationOnly ()
      << " Unknown sequence number " << (*this).GetUnknownSeqno ();
@@ -281,8 +272,7 @@ RreqHeader::operator== (RreqHeader const & o) const
   return (m_flags == o.m_flags && m_reserved == o.m_reserved &&
           m_hopCount == o.m_hopCount && m_requestID == o.m_requestID &&
           m_dst == o.m_dst && m_dstSeqNo == o.m_dstSeqNo &&
-          m_origin == o.m_origin && m_originSeqNo == o.m_originSeqNo && 
-          m_etxMetrix == o.m_etxMetrix);
+          m_origin == o.m_origin && m_originSeqNo == o.m_originSeqNo);
 }
 
 //-----------------------------------------------------------------------------
@@ -290,9 +280,9 @@ RreqHeader::operator== (RreqHeader const & o) const
 //-----------------------------------------------------------------------------
 
 RrepHeader::RrepHeader (uint8_t prefixSize, uint8_t hopCount, Ipv4Address dst,
-                        uint32_t dstSeqNo, Ipv4Address origin, Time lifeTime, uint32_t etxMetrix) :
+                        uint32_t dstSeqNo, Ipv4Address origin, Time lifeTime) :
   m_flags (0), m_prefixSize (prefixSize), m_hopCount (hopCount),
-  m_dst (dst), m_dstSeqNo (dstSeqNo), m_origin (origin), m_etxMetrix (etxMetrix)
+  m_dst (dst), m_dstSeqNo (dstSeqNo), m_origin (origin)
 {
   m_lifeTime = uint32_t (lifeTime.GetMilliSeconds ());
 }
@@ -319,7 +309,7 @@ RrepHeader::GetInstanceTypeId () const
 uint32_t
 RrepHeader::GetSerializedSize () const
 {
-  return 19+4;
+  return 19;
 }
 
 void
@@ -332,7 +322,6 @@ RrepHeader::Serialize (Buffer::Iterator i) const
   i.WriteHtonU32 (m_dstSeqNo);
   WriteTo (i, m_origin);
   i.WriteHtonU32 (m_lifeTime);
-  i.WriteHtonU32 (m_etxMetrix);
 }
 
 uint32_t
@@ -347,7 +336,6 @@ RrepHeader::Deserialize (Buffer::Iterator start)
   m_dstSeqNo = i.ReadNtohU32 ();
   ReadFrom (i, m_origin);
   m_lifeTime = i.ReadNtohU32 ();
-  m_etxMetrix = i.ReadNtohU32 ();
 
   uint32_t dist = i.GetDistanceFrom (start);
   NS_ASSERT (dist == GetSerializedSize ());
@@ -363,7 +351,6 @@ RrepHeader::Print (std::ostream &os) const
       os << " prefix size " << m_prefixSize;
     }
   os << " source ipv4 " << m_origin << " lifetime " << m_lifeTime
-     << " ETX metrix " << m_etxMetrix
      << " acknowledgment required flag " << (*this).GetAckRequired ();
 }
 
@@ -587,15 +574,15 @@ void
 RerrHeader::SetNoDelete (bool f )
 {
   if (f)
-    m_flag |= (1 << 7); // Here it was 0 not 7
+    m_flag |= (1 << 0);
   else
-    m_flag &= ~(1 << 7); // Here it was 0 not 7
+    m_flag &= ~(1 << 0);
 }
 
 bool
 RerrHeader::GetNoDelete () const
 {
-  return (m_flag & (1 << 7)); // Here it was 0 not 7
+  return (m_flag & (1 << 0));
 }
 
 bool
@@ -653,140 +640,5 @@ operator<< (std::ostream & os, RerrHeader const & h )
   h.Print (os);
   return os;
 }
-
-//-----------------------------------------------------------------------------
-// LPP
-//----------------------------------------------------------------------
-LppHeader::LppHeader () {}
-
-NS_OBJECT_ENSURE_REGISTERED (LppHeader);
-
-TypeId
-LppHeader::GetTypeId ()
-{
-  static TypeId tid = TypeId ("ns3::aodv::LppHeader")
-    .SetParent<Header> ()
-    .SetGroupName("Aodv")
-    .AddConstructor<LppHeader> ()
-  ;
-  return tid;
 }
-
-TypeId
-LppHeader::GetInstanceTypeId () const
-{
-  return GetTypeId ();
 }
-
-uint32_t
-LppHeader::GetSerializedSize () const
-{
-  return (7 + 5 * GetNumberNeighbors ());
-}
-
-void
-LppHeader::Serialize (Buffer::Iterator i ) const
-{
-  i.WriteU8 (m_lppId);
-  i.WriteHtonU16 (GetNumberNeighbors ());
-  WriteTo (i, m_sourceAddr);
-  std::map<Ipv4Address, uint8_t>::const_iterator j;
-  for (j = m_neighborsLppCnt.begin (); j != m_neighborsLppCnt.end (); ++j)
-    {
-      WriteTo (i, (*j).first);
-      i.WriteU8 ((*j).second);
-    }
-}
-
-uint32_t
-LppHeader::Deserialize (Buffer::Iterator start )
-{
-  Buffer::Iterator i = start;
-  m_lppId = i.ReadU8 ();
-  uint16_t numberNeighbors = i.ReadNtohU16 ();
-  ReadFrom (i, m_sourceAddr);
-  m_neighborsLppCnt.clear ();
-  Ipv4Address neighborAddr;
-  uint8_t lppCnt;
-  for (uint8_t k = 0; k < numberNeighbors; ++k)
-    {
-      ReadFrom (i, neighborAddr);
-      lppCnt = i.ReadU8 ();
-      m_neighborsLppCnt.insert (std::make_pair (neighborAddr, lppCnt));
-    }
-
-  uint32_t dist = i.GetDistanceFrom (start);
-  NS_ASSERT (dist == GetSerializedSize ());
-  return dist;
-}
-
-void
-LppHeader::Print (std::ostream &os ) const
-{
-  os << "Lpp ID: " << m_lppId << "Source IP address" << m_sourceAddr;
-  os << "Number of neighbors: " <<  (*this).GetNumberNeighbors ();
-  os << "Neighbors (ipv4 address, received LPP count):";
-  std::map<Ipv4Address, uint8_t>::const_iterator j;
-  for (j = m_neighborsLppCnt.begin (); j != m_neighborsLppCnt.end (); ++j)
-    {
-      os << (*j).first << ", " << (*j).second;
-    }
-}
-
-bool
-LppHeader::AddToNeighborsList (Ipv4Address neighbor, uint8_t lppCnt)
-{
-  if (m_neighborsLppCnt.find (neighbor) != m_neighborsLppCnt.end ())
-    return true;
-
-  NS_ASSERT (GetNumberNeighbors () < 65536); // can't support more than 2^16 - 1 neighbors
-  m_neighborsLppCnt.insert (std::make_pair (neighbor, lppCnt));
-  return true;
-}
-
-bool
-LppHeader::RemoveFromNeighborsList (std::pair<Ipv4Address, uint8_t> & un )
-{
-  if (m_neighborsLppCnt.empty ())
-    return false;
-  std::map<Ipv4Address, uint8_t>::iterator i = m_neighborsLppCnt.begin ();
-  un = *i;
-  m_neighborsLppCnt.erase (i);
-  return true;
-}
-
-void
-LppHeader::ClearNeighborsList ()
-{
-  m_neighborsLppCnt.clear ();
-}
-
-bool
-LppHeader::operator== (LppHeader const & o ) const
-{
-  if (m_lppId != o.m_lppId || m_sourceAddr != o.m_sourceAddr || GetNumberNeighbors () != o.GetNumberNeighbors ())
-    return false;
-
-  std::map<Ipv4Address, uint8_t>::const_iterator j = m_neighborsLppCnt.begin ();
-  std::map<Ipv4Address, uint8_t>::const_iterator k = o.m_neighborsLppCnt.begin ();
-  for (uint8_t i = 0; i < GetNumberNeighbors (); ++i)
-    {
-      if ((j->first != k->first) || (j->second != k->second))
-        return false;
-
-      j++;
-      k++;
-    }
-  return true;
-}
-
-std::ostream &
-operator<< (std::ostream & os, LppHeader const & h )
-{
-  h.Print (os);
-  return os;
-}
-
-
-} // aodv namspace
-} // ns3 namespace

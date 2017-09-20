@@ -45,11 +45,11 @@ namespace aodv
  */
 
 RoutingTableEntry::RoutingTableEntry (Ptr<NetDevice> dev, Ipv4Address dst, bool vSeqNo, uint32_t seqNo,
-                                      Ipv4InterfaceAddress iface, uint16_t hops, Ipv4Address nextHop, Time lifetime, uint32_t etx) :
+                                      Ipv4InterfaceAddress iface, uint16_t hops, Ipv4Address nextHop, Time lifetime) :
   m_ackTimer (Timer::CANCEL_ON_DESTROY),
   m_validSeqNo (vSeqNo), m_seqNo (seqNo), m_hops (hops),
   m_lifeTime (lifetime + Simulator::Now ()), m_iface (iface), m_flag (VALID),
-  m_reqCount (0), m_blackListState (false), m_blackListTimeout (Simulator::Now ()), m_etx10000 (etx)
+  m_reqCount (0), m_blackListState (false), m_blackListTimeout (Simulator::Now ())
 {
   m_ipv4Route = Create<Ipv4Route> ();
   m_ipv4Route->SetDestination (dst);
@@ -184,8 +184,7 @@ RoutingTableEntry::Print (Ptr<OutputStreamWrapper> stream) const
   *os << std::setiosflags (std::ios::fixed) << 
   std::setiosflags (std::ios::left) << std::setprecision (2) <<
   std::setw (14) << (m_lifeTime - Simulator::Now ()).GetSeconds ();
-  *os << "\t" << m_hops;
-  *os << "\t" << m_etx10000 << "\n";
+  *os << "\t" << m_hops << "\n";
 }
 
 /*

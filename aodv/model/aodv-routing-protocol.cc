@@ -152,9 +152,6 @@ RoutingProtocol::RoutingProtocol () :
   m_nb (m_helloInterval),
   m_rreqCount (0),
   m_rerrCount (0),
-  m_enableEtx (true),
-  m_lppInterval (Seconds (1)),
-  m_lppTimer (Timer::CANCEL_ON_DESTROY),
   m_htimer (Timer::CANCEL_ON_DESTROY),
   m_rreqRateLimitTimer (Timer::CANCEL_ON_DESTROY),
   m_rerrRateLimitTimer (Timer::CANCEL_ON_DESTROY),
@@ -242,7 +239,7 @@ RoutingProtocol::GetTypeId (void)
                    MakeTimeAccessor (&RoutingProtocol::m_pathDiscoveryTime),
                    MakeTimeChecker ())
     .AddAttribute ("MaxQueueLen", "Maximum number of packets that we allow a routing protocol to buffer.",
-                   UintegerValue (1024), //originaly it was 64
+                   UintegerValue (64),
                    MakeUintegerAccessor (&RoutingProtocol::SetMaxQueueLen,
                                          &RoutingProtocol::GetMaxQueueLen),
                    MakeUintegerChecker<uint32_t> ())
@@ -280,15 +277,6 @@ RoutingProtocol::GetTypeId (void)
                    StringValue ("ns3::UniformRandomVariable"),
                    MakePointerAccessor (&RoutingProtocol::m_uniformRandomVariable),
                    MakePointerChecker<UniformRandomVariable> ())
-    .AddAttribute ("EnableEtx", "Enable ETX metrix.",
-                   BooleanValue (true),
-                   MakeBooleanAccessor (&RoutingProtocol::SetEtxEnable,
-                                        &RoutingProtocol::GetEtxEnable),
-                   MakeBooleanChecker ())
-    .AddAttribute ("LppInterval", "Link probe packet emission interval.",
-                   TimeValue (Seconds (1)),
-                   MakeTimeAccessor (&RoutingProtocol::m_lppInterval),
-                   MakeTimeChecker ())
   ;
   return tid;
 }
@@ -364,6 +352,7 @@ RoutingProtocol::Start ()
   m_rerrRateLimitTimer.SetFunction (&RoutingProtocol::RerrRateLimitTimerExpire,
                                     this);
   m_rerrRateLimitTimer.Schedule (Seconds (1));
+
 }
 
 Ptr<Ipv4Route>
@@ -1123,11 +1112,6 @@ RoutingProtocol::RecvAodv (Ptr<Socket> socket)
       {
         RecvReplyAck (sender);
         break;
-      }    
-    case AODVTYPE_LPP:
-      {
-        RecvLpp (packet, receiver, sender);
-        break;
       }
     }
 }
@@ -1183,32 +1167,6 @@ RoutingProtocol::UpdateRouteToNeighbor (Ipv4Address sender, Ipv4Address receiver
 }
 
 void
-RoutingProtocol::RecvLpp (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address src)
-{
-  NS_LOG_FUNCTION (this);
-  
-  //NS_LOG_UNCOND ("LPP receive: " << Simulator::Now ().GetSeconds () << " - sender = " << src << ", receiver = " << receiver);
-  LppHeader lppHeader;
-  p->RemoveHeader (lppHeader);
-  Ipv4Address source = lppHeader.GetSourceAddress ();
-  NS_ASSERT (source == src);
-  uint8_t lppTimeStamp = lppHeader.GetLppId ();
-  uint16_t numNeighbors = lppHeader.GetNumberNeighbors ();
-  std::pair<Ipv4Address, uint8_t> un;
-  uint8_t lppReverse = 0;
-  for (uint16_t j=0; j<numNeighbors; ++j)
-    {
-      lppHeader.RemoveFromNeighborsList (un);
-      if (un.first == receiver)
-        {
-          lppReverse = un.second;
-          break;
-        }
-    } 
-  m_nbEtx.UpdateNeighborEtx (src, lppTimeStamp, lppReverse);
-}
-
-void
 RoutingProtocol::RecvRequest (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address src)
 {
   NS_LOG_FUNCTION (this);
@@ -1242,19 +1200,6 @@ RoutingProtocol::RecvRequest (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address s
   // Increment RREQ hop count
   uint8_t hop = rreqHeader.GetHopCount () + 1;
   rreqHeader.SetHopCount (hop);
-  
-  // TODO: Add RREQ ETX metrix
-  uint32_t etx = m_nbEtx.ReadEtxForNeighbor (origin);
-  if (etx == NeighborEtx::EtxMaxValue ())
-    {
-      NS_LOG_UNCOND ("ETX -> oo !!! ");
-      rreqHeader.SetEtxMetrix (etx);
-    }
-  else
-    {
-      rreqHeader.SetEtxMetrix (etx + rreqHeader.GetEtxMetrix ());
-    }
-  
 
   /*
    *  When the reverse route is created or updated, the following actions on the route are also carried out:
@@ -1824,16 +1769,6 @@ RoutingProtocol::RerrRateLimitTimerExpire ()
 }
 
 void
-RoutingProtocol::LppTimerExpire ()
-{
-  NS_LOG_FUNCTION (this);
-  //NS_LOG_UNCOND ("LPP timer expired at: " << Simulator::Now ().GetSeconds () << " s.");
-  m_lppTimer.Cancel ();
-  m_lppTimer.Schedule (m_lppInterval);
-  SendLpp ();
-}
-
-void
 RoutingProtocol::AckTimerExpire (Ipv4Address neighbor, Time blacklistTimeout)
 {
   NS_LOG_FUNCTION (this);
@@ -1873,51 +1808,7 @@ RoutingProtocol::SendHello ()
         { 
           destination = iface.GetBroadcast ();
         }
-      Time jitter = Time (MicroSeconds (m_uniformRandomVariable->GetInteger (0, 10000)));
-      Simulator::Schedule (jitter, &RoutingProtocol::SendTo, this , socket, packet, destination);
-    }
-}
-
-void
-RoutingProtocol::SendLpp ()
-{
-  NS_LOG_FUNCTION (this);
-  // increment time stamp and clear oldest time stamp
-  m_nbEtx.GotoNextTimeStampAndClearOldest ();
-  
-  // send lpp counts from past 10 secunds (not including current and oldest)
-  for (std::map<Ptr<Socket>, Ipv4InterfaceAddress>::const_iterator j = m_socketAddresses.begin (); j != m_socketAddresses.end (); ++j)
-    {
-      Ptr<Socket> socket = j->first;
-      Ipv4InterfaceAddress iface = j->second;
-      LppHeader lppHeader;
-      //set fields of LPP header
-      lppHeader.SetLppId (m_nbEtx.GetLppTimeStamp ());
-      lppHeader.SetSourceAddress (iface.GetLocal ());
-      //NS_LOG_UNCOND ("LPP send: time=" << Simulator::Now ().GetSeconds () << " s, " << "source=" << iface.GetLocal ());
-      m_nbEtx.FillLppCntData (lppHeader);
-
-      Ptr<Packet> packet = Create<Packet> ();
-      SocketIpTtlTag tag;
-      tag.SetTtl (1);
-      packet->AddPacketTag (tag);
-      packet->AddHeader (lppHeader);
-      TypeHeader tHeader (AODVTYPE_LPP);
-      packet->AddHeader (tHeader);
-      // Send to all-hosts broadcast if on /32 addr, subnet-directed otherwise
-      Ipv4Address destination;
-      if (iface.GetMask () == Ipv4Mask::GetOnes ())
-        {
-          destination = Ipv4Address ("255.255.255.255");
-        }
-      else
-        { 
-          destination = iface.GetBroadcast ();
-        }
-      // TODO: LPP is new introduced but also broadcast packet 
-      //m_lastBcastTime = Simulator::Now ();
-      Time jitter = Time (MicroSeconds (m_uniformRandomVariable->GetInteger (0, 10000)));
-      // NS_LOG_UNCOND ("Jitter = " << jitter);  
+      Time jitter = Time (MilliSeconds (m_uniformRandomVariable->GetInteger (0, 10)));
       Simulator::Schedule (jitter, &RoutingProtocol::SendTo, this , socket, packet, destination);
     }
 }
@@ -2166,16 +2057,9 @@ RoutingProtocol::DoInitialize (void)
     {
       m_htimer.SetFunction (&RoutingProtocol::HelloTimerExpire, this);
       startTime = m_uniformRandomVariable->GetInteger (0, 100);
-      NS_LOG_DEBUG ("Hello timer starting at time " << startTime << "ms");
+      NS_LOG_DEBUG ("Starting at time " << startTime << "ms");
       m_htimer.Schedule (MilliSeconds (startTime));
     }
-  if (m_enableEtx)
-    {
-      m_lppTimer.SetFunction (&RoutingProtocol::LppTimerExpire, this);
-      startTime = m_uniformRandomVariable->GetInteger (0, 100);
-      NS_LOG_DEBUG ("LPP timer starting at time " << startTime << "ms");
-      m_lppTimer.Schedule (MilliSeconds (startTime));
-    }  
   Ipv4RoutingProtocol::DoInitialize ();
 }
 
