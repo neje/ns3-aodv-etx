@@ -1566,6 +1566,20 @@ RoutingProtocol::RecvReply (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address sen
       ProcessHello (rrepHeader, receiver);
       return;
     }
+    
+  // Add in RREP header ETX metrix for last hop from neighbor to this node
+  // Now RREP contains ETX from destination to this node
+  uint32_t etx = m_nbEtx.GetEtxForNeighbor (sender); // sender is always neighbor, destination maybe isn't
+  if (etx == NeighborEtx::EtxMaxValue ())
+    { // this should never happen because neighbor has limited ETX, but it is better to check!
+      NS_LOG_UNCOND ("ETX -> oo !!! "); 
+      rrepHeader.SetEtx (etx);
+    }
+  else
+    {
+      rrepHeader.SetEtx (etx + rrepHeader.GetEtx ());
+    }
+   
 
   /*
    * If the route table entry to the destination is created or updated, then the following actions occur:
@@ -1579,8 +1593,9 @@ RoutingProtocol::RecvReply (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address sen
    */
   Ptr<NetDevice> dev = m_ipv4->GetNetDevice (m_ipv4->GetInterfaceForAddress (receiver));
   RoutingTableEntry newEntry (/*device=*/ dev, /*dst=*/ dst, /*validSeqNo=*/ true, /*seqno=*/ rrepHeader.GetDstSeqno (),
-                                          /*iface=*/ m_ipv4->GetAddress (m_ipv4->GetInterfaceForAddress (receiver), 0),/*hop=*/ hop,
-                                          /*nextHop=*/ sender, /*lifeTime=*/ rrepHeader.GetLifeTime ());
+                              /*iface=*/ m_ipv4->GetAddress (m_ipv4->GetInterfaceForAddress (receiver), 0),/*hop=*/ hop,
+                              /*nextHop=*/ sender, /*lifeTime=*/ rrepHeader.GetLifeTime (), 
+                              /*etx*/ rrepHeader.GetEtx ());
   RoutingTableEntry toDst;
   if (m_routingTable.LookupRoute (dst, toDst))
     {
@@ -1597,18 +1612,31 @@ RoutingProtocol::RecvReply (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address sen
         {
           m_routingTable.Update (newEntry);
         }
-      else
+      else if (rrepHeader.GetDstSeqno () == toDst.GetSeqNo ())
         {
           // (iii) the sequence numbers are the same, but the route is marked as inactive.
-          if ((rrepHeader.GetDstSeqno () == toDst.GetSeqNo ()) && (toDst.GetFlag () != VALID))
+          if (toDst.GetFlag () != VALID)
             {
               m_routingTable.Update (newEntry);
             }
-          // (iv)  the sequence numbers are the same, and the New Hop Count is smaller than the hop count in route table entry.
-          else if ((rrepHeader.GetDstSeqno () == toDst.GetSeqNo ()) && (hop < toDst.GetHop ()))
+          // (iv) the sequence numbers are the same, but ETX is smaller
+          else if (rrepHeader.GetDstSeqno () < toDst.GetEtx ())
+            {
+              m_routingTable.Update (newEntry);
+            }          
+          // (v)  the sequence numbers and ETX are the same, and the New Hop Count is smaller than the hop count in route table entry.
+          else if ((rrepHeader.GetDstSeqno () == toDst.GetEtx ()) && (hop < toDst.GetHop ()))
             {
               m_routingTable.Update (newEntry);
             }
+/*
+          // Nenad: Should lifetime of active route from table be updated if new route is equal to existing one?
+          else if ((rrepHeader.GetDstSeqno () == toDst.GetEtx ()) && (hop == toDst.GetHop ()))
+            {
+              toDst.SetLifeTime (std::max (rrepHeader.GetLifeTime (), toDst.GetLifeTime ()));
+              m_routingTable.Update (toDst);
+            }
+*/
         }
     }
   else
