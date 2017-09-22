@@ -24,11 +24,7 @@
  *
  * Authors: Elena Buchatskaia <borovkovaes@iitp.ru>
  *          Pavel Boyko <boyko@iitp.ru>
- *
- * Modified by: Nenad Jevtic <n.jevtic@sf.bg.ac.rs>, <nen.jevtic@gmail.com>
- *              Marija Malnar <m.malnar@sf.bg.ac.rs>
  */
- 
 #ifndef AODVPACKET_H
 #define AODVPACKET_H
 
@@ -47,8 +43,7 @@ enum MessageType
   AODVTYPE_RREQ  = 1,   //!< AODVTYPE_RREQ
   AODVTYPE_RREP  = 2,   //!< AODVTYPE_RREP
   AODVTYPE_RERR  = 3,   //!< AODVTYPE_RERR
-  AODVTYPE_RREP_ACK = 4, //!< AODVTYPE_RREP_ACK
-  AODVTYPE_LPP = 5      //!< AODVTYPE_LPP
+  AODVTYPE_RREP_ACK = 4 //!< AODVTYPE_RREP_ACK
 };
 
 /**
@@ -100,8 +95,6 @@ std::ostream & operator<< (std::ostream & os, TypeHeader const & h);
   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
   |                  Originator Sequence Number                   |
   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-  |                          ETX metrix                           |
-  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ 
   \endverbatim
 */
 class RreqHeader : public Header 
@@ -111,7 +104,7 @@ public:
   RreqHeader (uint8_t flags = 0, uint8_t reserved = 0, uint8_t hopCount = 0,
               uint32_t requestID = 0, Ipv4Address dst = Ipv4Address (),
               uint32_t dstSeqNo = 0, Ipv4Address origin = Ipv4Address (),
-              uint32_t originSeqNo = 0, uint32_t etxMetrix = 0);
+              uint32_t originSeqNo = 0);
 
   // Header serialization/deserialization
   static TypeId GetTypeId ();
@@ -134,8 +127,6 @@ public:
   Ipv4Address GetOrigin () const { return m_origin; }
   void SetOriginSeqno (uint32_t s) { m_originSeqNo = s; }
   uint32_t GetOriginSeqno () const { return m_originSeqNo; }
-  void SetEtx (uint32_t s) { m_etxMetrix = s; }
-  uint32_t GetEtx () const { return m_etxMetrix; }
 
   // Flags
   void SetGratiousRrep (bool f);
@@ -155,7 +146,6 @@ private:
   uint32_t       m_dstSeqNo;       ///< Destination Sequence Number
   Ipv4Address    m_origin;         ///< Originator IP Address
   uint32_t       m_originSeqNo;    ///< Source Sequence Number
-  uint32_t       m_etxMetrix;      ///< ETX metrix
 };
 
 std::ostream & operator<< (std::ostream & os, RreqHeader const &);
@@ -177,8 +167,6 @@ std::ostream & operator<< (std::ostream & os, RreqHeader const &);
   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
   |                           Lifetime                            |
   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-  |                          ETX metrix                           |
-  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
   \endverbatim
 */
 class RrepHeader : public Header
@@ -187,7 +175,7 @@ public:
   /// c-tor
   RrepHeader (uint8_t prefixSize = 0, uint8_t hopCount = 0, Ipv4Address dst =
                 Ipv4Address (), uint32_t dstSeqNo = 0, Ipv4Address origin =
-                Ipv4Address (), Time lifetime = MilliSeconds (0), uint32_t etxMetrix = 0);
+                Ipv4Address (), Time lifetime = MilliSeconds (0));
   // Header serialization/deserialization
   static TypeId GetTypeId ();
   TypeId GetInstanceTypeId () const;
@@ -207,9 +195,7 @@ public:
   Ipv4Address GetOrigin () const { return m_origin; }
   void SetLifeTime (Time t);
   Time GetLifeTime () const;
-  void SetEtx (uint32_t s) { m_etxMetrix = s; }
-  uint32_t GetEtx () const { return m_etxMetrix; }
-  
+
   // Flags
   void SetAckRequired (bool f);
   bool GetAckRequired () const;
@@ -221,14 +207,13 @@ public:
 
   bool operator== (RrepHeader const & o) const;
 private:
-  uint8_t       m_flags;            ///< A - acknowledgment required flag
-  uint8_t       m_prefixSize;       ///< Prefix Size
-  uint8_t       m_hopCount;         ///< Hop Count
+  uint8_t       m_flags;                  ///< A - acknowledgment required flag
+  uint8_t       m_prefixSize;         ///< Prefix Size
+  uint8_t             m_hopCount;         ///< Hop Count
   Ipv4Address   m_dst;              ///< Destination IP Address
   uint32_t      m_dstSeqNo;         ///< Destination Sequence Number
-  Ipv4Address   m_origin;           ///< Source IP Address
+  Ipv4Address     m_origin;           ///< Source IP Address
   uint32_t      m_lifeTime;         ///< Lifetime (in milliseconds)
-  uint32_t      m_etxMetrix;        ///< ETX metrix
 };
 
 std::ostream & operator<< (std::ostream & os, RrepHeader const &);
@@ -325,68 +310,6 @@ private:
 };
 
 std::ostream & operator<< (std::ostream & os, RerrHeader const &);
-
-
-/**
-* \ingroup aodv
-* \brief   Link probe packet (LPP) Message Format
-  \verbatim
-  0                   1                   2                   3
-  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-  |     Type      |     LPP ID    |   Number of Nighbors (n)      |
-  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-  |                   Originator IP Address                       |
-  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-  |                 Originator Sequence Number                    |
-  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-  |                 n * Neighbor IP Address                       |
-  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-  |n*neig. LPP cnt|  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  |
-  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   \endverbatim
-*/
-class LppHeader : public Header 
-{
-public:
-  /// c-tor
-  LppHeader ();
-
-  // Header serialization/deserialization
-  static TypeId GetTypeId ();
-  TypeId GetInstanceTypeId () const;
-  uint32_t GetSerializedSize () const;
-  void Serialize (Buffer::Iterator start) const;
-  uint32_t Deserialize (Buffer::Iterator start);
-  void Print (std::ostream &os) const;
-
-  // Fields
-  void SetLppId (uint8_t count) { m_lppId = count; }
-  uint8_t GetLppId () const { return m_lppId; }
-  void SetOriginAddress (Ipv4Address a) { m_originAddr = a; }
-  Ipv4Address GetOriginAddress () const { return m_originAddr; }
-  void SetOriginSeqno (uint32_t seqno) { m_originSeqno = seqno; }
-  uint32_t GetOriginSeqno () const { return m_originSeqno; }
-  uint8_t GetNumberNeighbors () const { return (uint16_t)m_neighborsLppCnt.size (); }
-
-  /// Control neighbors list
-  bool AddToNeighborsList (Ipv4Address neighbor, uint8_t lppCnt);
-  bool RemoveFromNeighborsList (std::pair<Ipv4Address, uint8_t> & un);
-  void ClearNeighborsList ();
-
-  bool operator== (LppHeader const & o) const;
-private:
-  uint8_t       m_lppId;          ///< LPP ID
-  Ipv4Address    m_originAddr;     ///< Originator IP Address
-  uint32_t      m_originSeqno;    ///< Originator Sequential number
-
-  /// List of neighbors: IP addresses and number of LLP count in last check period
-  std::map<Ipv4Address, uint8_t> m_neighborsLppCnt;
-};
-
-std::ostream & operator<< (std::ostream & os, LppHeader const &);
-
-} // aodv namespace
-} // ns3 namespace
-
+}
+}
 #endif /* AODVPACKET_H */
