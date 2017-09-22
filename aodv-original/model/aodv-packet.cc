@@ -574,15 +574,15 @@ void
 RerrHeader::SetNoDelete (bool f )
 {
   if (f)
-    m_flag |= (1 << 0);
+    m_flag |= (1 << 0); // TODO: BUG - should be bit 7 not bit 0
   else
-    m_flag &= ~(1 << 0);
+    m_flag &= ~(1 << 0); // TODO: BUG - should be bit 7 not bit 0
 }
 
 bool
 RerrHeader::GetNoDelete () const
 {
-  return (m_flag & (1 << 0));
+  return (m_flag & (1 << 0)); // TODO: BUG - should be bit 7 not bit 0
 }
 
 bool
