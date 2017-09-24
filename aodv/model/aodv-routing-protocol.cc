@@ -143,7 +143,7 @@ RoutingProtocol::RoutingProtocol () :
   m_blackListTimeout (Time (m_rreqRetries * m_netTraversalTime)),
   m_maxQueueLen (64),
   m_maxQueueTime (Seconds (30)),
-  m_destinationOnly (false),
+  m_destinationOnly (true),
   m_gratuitousReply (true),
   m_enableHello (false),
   m_routingTable (m_deletePeriod),
@@ -264,7 +264,7 @@ RoutingProtocol::GetTypeId (void)
                                         &RoutingProtocol::GetGratuitousReplyFlag),
                    MakeBooleanChecker ())
     .AddAttribute ("DestinationOnly", "Indicates only the destination may respond to this RREQ.",
-                   BooleanValue (false),
+                   BooleanValue (true),
                    MakeBooleanAccessor (&RoutingProtocol::SetDesinationOnlyFlag,
                                         &RoutingProtocol::GetDesinationOnlyFlag),
                    MakeBooleanChecker ())
@@ -1032,6 +1032,7 @@ RoutingProtocol::SendRequest (Ipv4Address dst)
         { 
           destination = iface.GetBroadcast ();
         }
+      NS_LOG_UNCOND ("Send RREQ: " << iface.GetLocal () << " --> " << destination << " for dst " << dst << " ID" << m_requestId << " SeqNo " << m_seqNo);
       NS_LOG_DEBUG ("Send RREQ with id " << rreqHeader.GetId () << " to socket");
       m_lastBcastTime = Simulator::Now ();
       Simulator::Schedule (Time (MilliSeconds (m_uniformRandomVariable->GetInteger (0, 10))), &RoutingProtocol::SendTo, this, socket, packet, destination); 
@@ -1282,6 +1283,8 @@ RoutingProtocol::RecvRequest (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address s
   uint32_t id = rreqHeader.GetId ();
   Ipv4Address origin = rreqHeader.GetOrigin (); // Originator is not always neighbor (RREQ forwarding)
 
+  NS_LOG_UNCOND ("Recv RREQ [ID=" << rreqHeader.GetId () << ",OriginSeqNo=" << rreqHeader.GetOriginSeqno () << "]: " << src << " --> " << receiver << ", originator " << origin << " dst " << rreqHeader.GetDst ());
+
   // Increment RREQ hop count
   uint8_t hop = rreqHeader.GetHopCount () + 1;
   rreqHeader.SetHopCount (hop);
@@ -1299,11 +1302,15 @@ RoutingProtocol::RecvRequest (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address s
       rreqHeader.SetEtx (etx + rreqHeader.GetEtx ());
     }
 
+  NS_LOG_UNCOND ("Recv RREQ header: hop " << int(hop) << ", ETX " << rreqHeader.GetEtx ());
+
   /*
    *  Node checks to determine whether it has received a RREQ with the same Originator IP Address and RREQ ID.
    *  If such a RREQ has been received, the node silently discards the newly received RREQ.
    *  This is modified to include ETX, so RREQ is discarded only if etx of previously received RREQ is beter (smaller) then this one
    */
+
+
   if (m_rreqIdCache.IsDuplicate (origin, id))
     {
       RoutingTableEntry rte;
@@ -1311,10 +1318,22 @@ RoutingProtocol::RecvRequest (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address s
         {
           if (rte.GetEtx () <= rreqHeader.GetEtx ())
             {
-              NS_LOG_DEBUG ("Ignoring RREQ due to duplicate");
+              NS_LOG_DEBUG ("Ignoring RREQ due to duplicate, previous RREQ had better ETX.");
+              NS_LOG_UNCOND ("Duplicate, IGNORE previous RREQ had better ETX.");
               return;
             }
+            NS_LOG_UNCOND ("Duplicate, but better ETX. Continue...");
         }
+      NS_LOG_UNCOND ("Duplicate, but no route in the table. Continue...");
+    }
+    else
+      NS_LOG_UNCOND ("Not found duplicate. Continue...");
+  
+  // This should be solved by previous if due to duplicate RREQ, but it is not?!
+  if (receiver == rreqHeader.GetOrigin ())
+    {
+      NS_LOG_UNCOND ("This is my own RREQ, so drop!"); 
+      return;
     }
 
   /*
@@ -1579,6 +1598,9 @@ void
 RoutingProtocol::RecvReply (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address sender)
 {
   NS_LOG_FUNCTION (this << " src " << sender);
+  
+  NS_LOG_UNCOND ("RREP: " << sender << " --> " << receiver << " packet " << p);
+  
   RrepHeader rrepHeader;
   p->RemoveHeader (rrepHeader);
   Ipv4Address dst = rrepHeader.GetDst ();
