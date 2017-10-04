@@ -1032,7 +1032,7 @@ RoutingProtocol::SendRequest (Ipv4Address dst)
         {
           destination = iface.GetBroadcast ();
         }
-      NS_LOG_UNCOND ("Send RREQ: " << iface.GetLocal () << " --> " << destination << " for dst " << dst << " ID" << m_requestId << " SeqNo " << m_seqNo);
+      NS_LOG_DEBUG ("Send RREQ: " << iface.GetLocal () << " --> " << destination << " for dst " << dst << " ID" << m_requestId << " SeqNo " << m_seqNo);
       NS_LOG_DEBUG ("Send RREQ with id " << rreqHeader.GetId () << " to socket");
       m_lastBcastTime = Simulator::Now ();
       Simulator::Schedule (Time (MilliSeconds (m_uniformRandomVariable->GetInteger (0, 10))), &RoutingProtocol::SendTo, this, socket, packet, destination);
@@ -1205,7 +1205,7 @@ RoutingProtocol::RecvLpp (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address src)
 {
   NS_LOG_FUNCTION (this);
 
-  //NS_LOG_UNCOND ("LPP receive: " << Simulator::Now ().GetSeconds () << " - sender = " << src << ", receiver = " << receiver);
+  //NS_LOG_DEBUG ("LPP receive: " << Simulator::Now ().GetSeconds () << " - sender = " << src << ", receiver = " << receiver);
   LppHeader lppHeader;
   p->RemoveHeader (lppHeader);
   Ipv4Address origin = lppHeader.GetOriginAddress ();
@@ -1283,7 +1283,7 @@ RoutingProtocol::RecvRequest (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address s
   uint32_t id = rreqHeader.GetId ();
   Ipv4Address origin = rreqHeader.GetOrigin (); // Originator is not always neighbor (RREQ forwarding)
 
-  NS_LOG_UNCOND ("Recv RREQ [ID=" << rreqHeader.GetId () << ",OriginSeqNo=" << rreqHeader.GetOriginSeqno () << "]: " << src << " --> " << receiver << ", originator " << origin << " dst " << rreqHeader.GetDst ());
+  NS_LOG_DEBUG ("Recv RREQ [ID=" << rreqHeader.GetId () << ",OriginSeqNo=" << rreqHeader.GetOriginSeqno () << "]: " << src << " --> " << receiver << ", originator " << origin << " dst " << rreqHeader.GetDst ());
 
   // Increment RREQ hop count
   uint8_t hop = rreqHeader.GetHopCount () + 1;
@@ -1294,7 +1294,7 @@ RoutingProtocol::RecvRequest (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address s
   uint32_t etx = m_nbEtx.GetEtxForNeighbor (src); // src is always neighbor, origin maybe isn't
   if (etx == NeighborEtx::EtxMaxValue ())
     { // this should never happen because neighbor has limited ETX, but it is better to check!
-      NS_LOG_UNCOND ("ETX -> oo !!! ");
+      NS_LOG_DEBUG ("ETX -> oo !!! ");
       rreqHeader.SetEtx (etx);
     }
   else
@@ -1302,7 +1302,7 @@ RoutingProtocol::RecvRequest (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address s
       rreqHeader.SetEtx (etx + rreqHeader.GetEtx ());
     }
 
-  NS_LOG_UNCOND ("Recv RREQ header: hop " << int(hop) << ", ETX " << rreqHeader.GetEtx ());
+  NS_LOG_DEBUG ("Recv RREQ header: hop " << int(hop) << ", ETX " << rreqHeader.GetEtx ());
 
   /*
    *  Node checks to determine whether it has received a RREQ with the same Originator IP Address and RREQ ID.
@@ -1319,20 +1319,20 @@ RoutingProtocol::RecvRequest (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address s
           if (rte.GetEtx () <= rreqHeader.GetEtx ())
             {
               NS_LOG_DEBUG ("Ignoring RREQ due to duplicate, previous RREQ had better ETX.");
-              NS_LOG_UNCOND ("Duplicate, IGNORE previous RREQ had better ETX.");
+              NS_LOG_DEBUG ("Duplicate, IGNORE previous RREQ had better ETX.");
               return;
             }
-            NS_LOG_UNCOND ("Duplicate, but better ETX. Continue...");
+            NS_LOG_DEBUG ("Duplicate, but better ETX. Continue...");
         }
-      NS_LOG_UNCOND ("Duplicate, but no route in the table. Continue...");
+      NS_LOG_DEBUG ("Duplicate, but no route in the table. Continue...");
     }
     else
-      NS_LOG_UNCOND ("Not found duplicate. Continue...");
+      NS_LOG_DEBUG ("Not found duplicate. Continue...");
 
   // This should be solved by previous if due to duplicate RREQ, but it is not?!
   if (receiver == rreqHeader.GetOrigin ())
     {
-      NS_LOG_UNCOND ("This is my own RREQ, so drop!");
+      NS_LOG_DEBUG ("This is my own RREQ, so drop!");
       return;
     }
 
@@ -1619,7 +1619,7 @@ RoutingProtocol::RecvReply (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address sen
   uint32_t etx = m_nbEtx.GetEtxForNeighbor (sender); // sender is always neighbor, destination maybe isn't
   if (etx == NeighborEtx::EtxMaxValue ())
     { // this should never happen because neighbor has limited ETX, but it is better to check!
-      NS_LOG_UNCOND ("ETX -> oo !!! ");
+      NS_LOG_DEBUG ("ETX -> oo !!! ");
       rrepHeader.SetEtx (etx);
     }
   else
@@ -1628,12 +1628,12 @@ RoutingProtocol::RecvReply (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address sen
     }
 
   // For testing
-  NS_LOG_UNCOND ("RREP: " << Simulator::Now ().GetSeconds () << " sec.");
-  NS_LOG_UNCOND ("      " << dst << "-->" << sender << " --> " << receiver << " --> " << rrepHeader.GetOrigin ());
-  NS_LOG_UNCOND ("      hops: " << int(hop) << ", ETX: " << rrepHeader.GetEtx ());
+  NS_LOG_DEBUG ("RREP: " << Simulator::Now ().GetSeconds () << " sec.");
+  NS_LOG_DEBUG ("      " << dst << "-->" << sender << " --> " << receiver << " --> " << rrepHeader.GetOrigin ());
+  NS_LOG_DEBUG ("      hops: " << int(hop) << ", ETX: " << rrepHeader.GetEtx ());
   if (receiver == rrepHeader.GetOrigin ())
     {
-      //NS_LOG_UNCOND ("      ROUTE FOUND!");
+      //NS_LOG_DEBUG ("      ROUTE FOUND!");
     }
 
   /*
@@ -1662,13 +1662,13 @@ RoutingProtocol::RecvReply (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address sen
       if (!toDst.GetValidSeqNo ())
         {
           m_routingTable.Update (newEntry);
-          NS_LOG_UNCOND ("      Route updated: the sequence number in the routing table is marked as invalid in route table entry.");
+          NS_LOG_DEBUG ("      Route updated: the sequence number in the routing table is marked as invalid in route table entry.");
         }
       // (ii)the Destination Sequence Number in the RREP is greater than the node's copy of the destination sequence number and the known value is valid,
       else if ((int32_t (rrepHeader.GetDstSeqno ()) - int32_t (toDst.GetSeqNo ())) > 0)
         {
           m_routingTable.Update (newEntry);
-          NS_LOG_UNCOND ("      Route updated: the Destination Sequence Number in the RREP is greater than the node's copy of the destination sequence number and the known value is valid.");
+          NS_LOG_DEBUG ("      Route updated: the Destination Sequence Number in the RREP is greater than the node's copy of the destination sequence number and the known value is valid.");
         }
       else if (rrepHeader.GetDstSeqno () == toDst.GetSeqNo ())
         {
@@ -1676,19 +1676,19 @@ RoutingProtocol::RecvReply (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address sen
           if (toDst.GetFlag () != VALID)
             {
               m_routingTable.Update (newEntry);
-              NS_LOG_UNCOND ("      Route updated: the sequence numbers are the same, but the route is marked as inactive.");
+              NS_LOG_DEBUG ("      Route updated: the sequence numbers are the same, but the route is marked as inactive.");
             }
           // (iv) the sequence numbers are the same, but ETX is smaller
           else if (rrepHeader.GetEtx () < toDst.GetEtx ())
             {
               m_routingTable.Update (newEntry);
-              NS_LOG_UNCOND ("      Route updated: the sequence numbers are the same, but ETX is smaller.");
+              NS_LOG_DEBUG ("      Route updated: the sequence numbers are the same, but ETX is smaller.");
             }
           // (v)  the sequence numbers and ETX are the same, and the New Hop Count is smaller than the hop count in route table entry.
           else if ((rrepHeader.GetEtx () == toDst.GetEtx ()) && (hop < toDst.GetHop ()))
             {
               m_routingTable.Update (newEntry);
-              NS_LOG_UNCOND ("      Route updated: the sequence numbers and ETX are the same, and the New Hop Count is smaller than the hop count in route table entry.");
+              NS_LOG_DEBUG ("      Route updated: the sequence numbers and ETX are the same, and the New Hop Count is smaller than the hop count in route table entry.");
             }
 /*
           // Nenad: Should lifetime of active route from table be updated if new route is equal to existing one?
@@ -1705,7 +1705,7 @@ RoutingProtocol::RecvReply (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address sen
       // The forward route for this destination is created if it does not already exist.
       NS_LOG_LOGIC ("add new route");
       m_routingTable.AddRoute (newEntry);
-      NS_LOG_UNCOND ("      Add new route.");
+      NS_LOG_DEBUG ("      Add new route.");
     }
   // Acknowledge receipt of the RREP by sending a RREP-ACK message back
   if (rrepHeader.GetAckRequired ())
@@ -1724,7 +1724,7 @@ RoutingProtocol::RecvReply (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address sen
         }
       m_routingTable.LookupRoute (dst, toDst);
       SendPacketFromQueue (dst, toDst.GetRoute ());
-      NS_LOG_UNCOND ("      ROUTE FOUND!");
+      NS_LOG_DEBUG ("      ROUTE FOUND!");
       return;
     }
 
@@ -1890,13 +1890,13 @@ void
 RoutingProtocol::RouteRequestTimerExpire (Ipv4Address dst)
 {
   NS_LOG_LOGIC (this);
-  NS_LOG_UNCOND ("RouteRequestTimerExpire");
+  NS_LOG_DEBUG ("RouteRequestTimerExpire");
   RoutingTableEntry toDst;
   if (m_routingTable.LookupValidRoute (dst, toDst))
     {
       SendPacketFromQueue (dst, toDst.GetRoute ());
       NS_LOG_LOGIC ("route to " << dst << " found");
-      NS_LOG_UNCOND ("Route found: " << toDst.GetRoute ()->GetSource () << " --> " << toDst.GetRoute ()->GetGateway () << " --> " << dst);
+      NS_LOG_DEBUG ("Route found: " << toDst.GetRoute ()->GetSource () << " --> " << toDst.GetRoute ()->GetGateway () << " --> " << dst);
       return;
     }
   /*
@@ -1910,7 +1910,7 @@ RoutingProtocol::RouteRequestTimerExpire (Ipv4Address dst)
       m_addressReqTimer.erase (dst);
       m_routingTable.DeleteRoute (dst);
       NS_LOG_DEBUG ("Route not found. Drop all packets with dst " << dst);
-      NS_LOG_UNCOND ("Route not found. Drop all packets with dst " << dst);
+      NS_LOG_DEBUG ("Route not found. Drop all packets with dst " << dst);
       m_queue.DropPacketWithDst (dst);
       return;
     }
@@ -1918,13 +1918,13 @@ RoutingProtocol::RouteRequestTimerExpire (Ipv4Address dst)
   if (toDst.GetFlag () == IN_SEARCH)
     {
       NS_LOG_LOGIC ("Resend RREQ to " << dst << " previous ttl " << toDst.GetHop ());
-      NS_LOG_UNCOND ("Resend RREQ to " << dst << " previous ttl " << toDst.GetHop ());
+      NS_LOG_DEBUG ("Resend RREQ to " << dst << " previous ttl " << toDst.GetHop ());
       SendRequest (dst);
     }
   else
     {
       NS_LOG_DEBUG ("Route down. Stop search. Drop packet with destination " << dst);
-      NS_LOG_UNCOND ("Route down. Stop search. Drop packet with destination " << dst);
+      NS_LOG_DEBUG ("Route down. Stop search. Drop packet with destination " << dst);
       m_addressReqTimer.erase (dst);
       m_routingTable.DeleteRoute (dst);
       m_queue.DropPacketWithDst (dst);
@@ -1972,7 +1972,7 @@ void
 RoutingProtocol::LppTimerExpire ()
 {
   NS_LOG_FUNCTION (this);
-  //NS_LOG_UNCOND ("LPP timer expired at: " << Simulator::Now ().GetSeconds () << " s.");
+  //NS_LOG_DEBUG ("LPP timer expired at: " << Simulator::Now ().GetSeconds () << " s.");
   m_lppTimer.Cancel ();
   m_lppTimer.Schedule (m_lppInterval);
   SendLpp ();
@@ -2042,7 +2042,7 @@ RoutingProtocol::SendLpp ()
       lppHeader.SetLppId (m_nbEtx.GetLppTimeStamp ());
       lppHeader.SetOriginAddress (iface.GetLocal ());
       lppHeader.SetOriginSeqno (m_seqNo);
-      //NS_LOG_UNCOND ("LPP send: time=" << Simulator::Now ().GetSeconds () << " s, " << "source=" << iface.GetLocal ());
+      //NS_LOG_DEBUG ("LPP send: time=" << Simulator::Now ().GetSeconds () << " s, " << "source=" << iface.GetLocal ());
       m_nbEtx.FillLppCntData (lppHeader);
 
       Ptr<Packet> packet = Create<Packet> (134); // LPP packets use 134B dummy data payload
@@ -2065,7 +2065,7 @@ RoutingProtocol::SendLpp ()
       // LPP is also broadcast packet
       m_lastBcastTime = Simulator::Now ();
       Time jitter = Time (MicroSeconds (m_uniformRandomVariable->GetInteger (0, 10000)));
-      // NS_LOG_UNCOND ("Jitter = " << jitter);
+      // NS_LOG_DEBUG ("Jitter = " << jitter);
       Simulator::Schedule (jitter, &RoutingProtocol::SendTo, this , socket, packet, destination);
     }
 }
