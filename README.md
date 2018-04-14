@@ -1,5 +1,5 @@
 # ns3-aodv-etx
-This project implements ETX metrix in AODV routing protocol in NS3 simulator.
+This project implements ETX metric in AODV routing protocol in NS3 simulator.
 Project is work in progress. Updated to work with 3.28 release.
 
 To try how it works, you should do the following:
