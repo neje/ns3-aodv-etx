@@ -1,6 +1,6 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
- * Copyright (c) 2009 IITP RAS
+ * Copyright (c) 2018 University of Belgrade, Faculty of Traffic and Transport Engineering
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -22,13 +22,13 @@
  *      AODV-UU implementation by Erik Nordström of Uppsala University
  *      http://core.it.uu.se/core/index.php/AODV-UU
  *
- * Authors: Elena Buchatskaia <borovkovaes@iitp.ru>
+ * Authors of the original file: 
+ *          Elena Buchatskaia <borovkovaes@iitp.ru>
  *          Pavel Boyko <boyko@iitp.ru>
  *
  * Modified by: Nenad Jevtic <n.jevtic@sf.bg.ac.rs>, <nen.jevtic@gmail.com>
  *              Marija Malnar <m.malnar@sf.bg.ac.rs>
  */
- 
 #ifndef AODVPACKET_H
 #define AODVPACKET_H
 
@@ -42,6 +42,10 @@
 namespace ns3 {
 namespace aodv {
 
+/**
+* \ingroup aodv
+* \brief MessageType enumeration
+*/
 enum MessageType
 {
   AODVTYPE_RREQ  = 1,   //!< AODVTYPE_RREQ
@@ -58,10 +62,16 @@ enum MessageType
 class TypeHeader : public Header
 {
 public:
-  /// c-tor
+  /**
+   * constructor
+   * \param t the AODV RREQ type
+   */
   TypeHeader (MessageType t = AODVTYPE_RREQ);
 
-  // Header serialization/deserialization
+  /**
+   * \brief Get the type ID.
+   * \return the object TypeId
+   */
   static TypeId GetTypeId ();
   TypeId GetInstanceTypeId () const;
   uint32_t GetSerializedSize () const;
@@ -69,16 +79,37 @@ public:
   uint32_t Deserialize (Buffer::Iterator start);
   void Print (std::ostream &os) const;
 
-  /// Return type
-  MessageType Get () const { return m_type; }
-  /// Check that type if valid
-  bool IsValid () const { return m_valid; }
+  /**
+   * \returns the type
+   */
+  MessageType Get () const
+  {
+    return m_type;
+  }
+  /**
+   * Check that type if valid
+   * \returns true if the type is valid
+   */
+  bool IsValid () const
+  {
+    return m_valid;
+  }
+  /**
+   * \brief Comparison operator
+   * \param o header to compare
+   * \return true if the headers are equal
+   */
   bool operator== (TypeHeader const & o) const;
 private:
-  MessageType m_type;
-  bool m_valid;
+  MessageType m_type; ///< type of the message
+  bool m_valid; ///< Indicates if the message is valid
 };
 
+/**
+  * \brief Stream output operator
+  * \param os output stream
+  * \return updated stream
+  */
 std::ostream & operator<< (std::ostream & os, TypeHeader const & h);
 
 /**
@@ -100,20 +131,35 @@ std::ostream & operator<< (std::ostream & os, TypeHeader const & h);
   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
   |                  Originator Sequence Number                   |
   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-  |                          ETX metrix                           |
+  |                          ETX metric                           |
   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ 
   \endverbatim
 */
-class RreqHeader : public Header 
+class RreqHeader : public Header
 {
 public:
-  /// c-tor
-  RreqHeader (uint8_t flags = 0, uint8_t reserved = 0, uint8_t hopCount = 0,
+  /**
+   * constructor
+   *
+   * \param flags the message flags (0)
+   * \param reserved the reserved bits (0)
+   * \param hopCount the hop count
+   * \param requestID the request ID
+   * \param dst the destination IP address
+   * \param dstSeqNo the destination sequence number
+   * \param origin the origin IP address
+   * \param originSeqNo the origin sequence number
+   * \param etxMetric the ETX metric 
+   */
+   RreqHeader (uint8_t flags = 0, uint8_t reserved = 0, uint8_t hopCount = 0,
               uint32_t requestID = 0, Ipv4Address dst = Ipv4Address (),
               uint32_t dstSeqNo = 0, Ipv4Address origin = Ipv4Address (),
-              uint32_t originSeqNo = 0, uint32_t etxMetrix = 0);
+              uint32_t originSeqNo = 0, uint32_t etxMetric = 0);
 
-  // Header serialization/deserialization
+  /**
+   * \brief Get the type ID.
+   * \return the object TypeId
+   */
   static TypeId GetTypeId ();
   TypeId GetInstanceTypeId () const;
   uint32_t GetSerializedSize () const;
@@ -122,42 +168,175 @@ public:
   void Print (std::ostream &os) const;
 
   // Fields
-  void SetHopCount (uint8_t count) { m_hopCount = count; }
-  uint8_t GetHopCount () const { return m_hopCount; }
-  void SetId (uint32_t id) { m_requestID = id; }
-  uint32_t GetId () const { return m_requestID; }
-  void SetDst (Ipv4Address a) { m_dst = a; }
-  Ipv4Address GetDst () const { return m_dst; }
-  void SetDstSeqno (uint32_t s) { m_dstSeqNo = s; }
-  uint32_t GetDstSeqno () const { return m_dstSeqNo; }
-  void SetOrigin (Ipv4Address a) { m_origin = a; }
-  Ipv4Address GetOrigin () const { return m_origin; }
-  void SetOriginSeqno (uint32_t s) { m_originSeqNo = s; }
-  uint32_t GetOriginSeqno () const { return m_originSeqNo; }
-  void SetEtx (uint32_t s) { m_etxMetrix = s; }
-  uint32_t GetEtx () const { return m_etxMetrix; }
+  /**
+   * \brief Set the hop count
+   * \param count the hop count
+   */
+  void SetHopCount (uint8_t count)
+  {
+    m_hopCount = count;
+  }
+  /**
+   * \brief Get the hop count
+   * \return the hop count
+   */
+  uint8_t GetHopCount () const
+  {
+    return m_hopCount;
+  }
+  /**
+   * \brief Set the request ID
+   * \param id the request ID
+   */
+  void SetId (uint32_t id)
+  {
+    m_requestID = id;
+  }
+  /**
+   * \brief Get the request ID
+   * \return the request ID
+   */
+  uint32_t GetId () const
+  {
+    return m_requestID;
+  }
+  /**
+   * \brief Set the destination address
+   * \param a the destination address
+   */
+  void SetDst (Ipv4Address a)
+  {
+    m_dst = a;
+  }
+  /**
+   * \brief Get the destination address
+   * \return the destination address
+   */
+  Ipv4Address GetDst () const
+  {
+    return m_dst;
+  }
+  /**
+   * \brief Set the destination sequence number
+   * \param s the destination sequence number
+   */
+  void SetDstSeqno (uint32_t s)
+  {
+    m_dstSeqNo = s;
+  }
+  /**
+   * \brief Get the destination sequence number
+   * \return the destination sequence number
+   */
+  uint32_t GetDstSeqno () const
+  {
+    return m_dstSeqNo;
+  }
+  /**
+   * \brief Set the origin address
+   * \param a the origin address
+   */
+  void SetOrigin (Ipv4Address a)
+  {
+    m_origin = a;
+  }
+  /**
+   * \brief Get the origin address
+   * \return the origin address
+   */
+  Ipv4Address GetOrigin () const
+  {
+    return m_origin;
+  }
+  /**
+   * \brief Set the origin sequence number
+   * \param s the origin sequence number
+   */
+  void SetOriginSeqno (uint32_t s)
+  {
+    m_originSeqNo = s;
+  }
+  /**
+   * \brief Get the origin sequence number
+   * \return the origin sequence number
+   */
+  uint32_t GetOriginSeqno () const
+  {
+    return m_originSeqNo;
+  }
+ 
+  /**
+   * \brief Set the ETX metric
+   * \param the ETX metric
+   */ 
+  void SetEtx (uint32_t s) 
+  {
+	  m_etxMetric = s; 
+  }
 
+  /**
+   * \brief Get the ETX metric
+   * \return the ETX metric
+   */ 
+  uint32_t GetEtx () const 
+  { 
+     return m_etxMetric; 
+  }
   // Flags
-  void SetGratiousRrep (bool f);
-  bool GetGratiousRrep () const;
+  /**
+   * \brief Set the gratuitous RREP flag
+   * \param f the gratuitous RREP flag
+   */
+  void SetGratuitousRrep (bool f);
+  /**
+   * \brief Get the gratuitous RREP flag
+   * \return the gratuitous RREP flag
+   */
+  bool GetGratuitousRrep () const;
+  /**
+   * \brief Set the Destination only flag
+   * \param f the Destiantion only flag
+   */
   void SetDestinationOnly (bool f);
+  /**
+   * \brief Get the Destination only flag
+   * \return the Destination only flag
+   */
   bool GetDestinationOnly () const;
+  /**
+   * \brief Set the unknown sequence number flag
+   * \param f the unknown sequence number flag
+   */
   void SetUnknownSeqno (bool f);
+  /**
+   * \brief Get the unknown sequence number flag
+   * \return the unknown sequence number flag
+   */
   bool GetUnknownSeqno () const;
 
+  /**
+   * \brief Comparison operator
+   * \param o RREQ header to compare
+   * \return true if the RREQ headers are equal
+   */
   bool operator== (RreqHeader const & o) const;
 private:
   uint8_t        m_flags;          ///< |J|R|G|D|U| bit flags, see RFC
-  uint8_t        m_reserved;       ///< Not used
+  uint8_t        m_reserved;       ///< Not used (must be 0)
   uint8_t        m_hopCount;       ///< Hop Count
   uint32_t       m_requestID;      ///< RREQ ID
   Ipv4Address    m_dst;            ///< Destination IP Address
   uint32_t       m_dstSeqNo;       ///< Destination Sequence Number
   Ipv4Address    m_origin;         ///< Originator IP Address
   uint32_t       m_originSeqNo;    ///< Source Sequence Number
-  uint32_t       m_etxMetrix;      ///< ETX metrix
+  uint32_t       m_etxMetric;      ///< ETX metric
 };
 
+/**
+  * \brief Stream output operator
+  * \param os output stream
+  * \return updated stream
+  */
 std::ostream & operator<< (std::ostream & os, RreqHeader const &);
 
 /**
@@ -177,18 +356,31 @@ std::ostream & operator<< (std::ostream & os, RreqHeader const &);
   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
   |                           Lifetime                            |
   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-  |                          ETX metrix                           |
+  |                          ETX metric                           |
   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
   \endverbatim
 */
 class RrepHeader : public Header
 {
 public:
-  /// c-tor
+  /**
+   * constructor
+   *
+   * \param prefixSize the prefix size (0)
+   * \param hopCount the hop count (0)
+   * \param dst the destination IP address
+   * \param dstSeqNo the destination sequence number
+   * \param origin the origin IP address
+   * \param lifetime the lifetime
+   * \param the ETX metric
+   */
   RrepHeader (uint8_t prefixSize = 0, uint8_t hopCount = 0, Ipv4Address dst =
                 Ipv4Address (), uint32_t dstSeqNo = 0, Ipv4Address origin =
-                Ipv4Address (), Time lifetime = MilliSeconds (0), uint32_t etxMetrix = 0);
-  // Header serialization/deserialization
+                Ipv4Address (), Time lifetime = MilliSeconds (0), uint32_t etxMetric = 0);
+  /**
+   * \brief Get the type ID.
+   * \return the object TypeId
+   */
   static TypeId GetTypeId ();
   TypeId GetInstanceTypeId () const;
   uint32_t GetSerializedSize () const;
@@ -197,40 +389,150 @@ public:
   void Print (std::ostream &os) const;
 
   // Fields
-  void SetHopCount (uint8_t count) { m_hopCount = count; }
-  uint8_t GetHopCount () const { return m_hopCount; }
-  void SetDst (Ipv4Address a) { m_dst = a; }
-  Ipv4Address GetDst () const { return m_dst; }
-  void SetDstSeqno (uint32_t s) { m_dstSeqNo = s; }
-  uint32_t GetDstSeqno () const { return m_dstSeqNo; }
-  void SetOrigin (Ipv4Address a) { m_origin = a; }
-  Ipv4Address GetOrigin () const { return m_origin; }
+  /**
+   * \brief Set the hop count
+   * \param count the hop count
+   */
+  void SetHopCount (uint8_t count)
+  {
+    m_hopCount = count;
+  }
+  /**
+   * \brief Get the hop count
+   * \return the hop count
+   */
+  uint8_t GetHopCount () const
+  {
+    return m_hopCount;
+  }
+  /**
+   * \brief Set the destination address
+   * \param a the destination address
+   */
+  void SetDst (Ipv4Address a)
+  {
+    m_dst = a;
+  }
+  /**
+   * \brief Get the destination address
+   * \return the destination address
+   */
+  Ipv4Address GetDst () const
+  {
+    return m_dst;
+  }
+  /**
+   * \brief Set the destination sequence number
+   * \param s the destination sequence number
+   */
+  void SetDstSeqno (uint32_t s)
+  {
+    m_dstSeqNo = s;
+  }
+  /**
+   * \brief Get the destination sequence number
+   * \return the destination sequence number
+   */
+  uint32_t GetDstSeqno () const
+  {
+    return m_dstSeqNo;
+  }
+  /**
+   * \brief Set the origin address
+   * \param a the origin address
+   */
+  void SetOrigin (Ipv4Address a)
+  {
+    m_origin = a;
+  }
+  /**
+   * \brief Get the origin address
+   * \return the origin address
+   */
+  Ipv4Address GetOrigin () const
+  {
+    return m_origin;
+  }
+  /**
+   * \brief Set the lifetime
+   * \param t the lifetime
+   */
   void SetLifeTime (Time t);
+  /**
+   * \brief Get the lifetime
+   * \return the lifetime
+   */
   Time GetLifeTime () const;
-  void SetEtx (uint32_t s) { m_etxMetrix = s; }
-  uint32_t GetEtx () const { return m_etxMetrix; }
-  
+
+  /**
+   * \brief Set the ETX metric
+   * \param s ETX metric
+   */
+  void SetEtx (uint32_t s) 
+  {
+	  m_etxMetric = s; 
+  }
+  /**
+   * \brief Get the ETX metric
+   * \return the ETX metric
+   */
+  uint32_t GetEtx () const 
+  {
+    return m_etxMetric; 
+  }
   // Flags
+  /**
+   * \brief Set the ack required flag
+   * \param f the ack required flag
+   */
   void SetAckRequired (bool f);
+  /**
+   * \brief get the ack required flag
+   * \return the ack required flag
+   */
   bool GetAckRequired () const;
+  /**
+   * \brief Set the prefix size
+   * \param sz the prefix size
+   */
   void SetPrefixSize (uint8_t sz);
+  /**
+   * \brief Set the pefix size
+   * \return the prefix size
+   */
   uint8_t GetPrefixSize () const;
 
-  /// Configure RREP to be a Hello message
+  /**
+   * Configure RREP to be a Hello message
+   *
+   * \param src the source IP address
+   * \param srcSeqNo the source sequence number
+   * \param lifetime the lifetime of the message
+   */
   void SetHello (Ipv4Address src, uint32_t srcSeqNo, Time lifetime);
 
+  /**
+   * \brief Comparison operator
+   * \param o RREP header to compare
+   * \return true if the RREP headers are equal
+   */
   bool operator== (RrepHeader const & o) const;
 private:
-  uint8_t       m_flags;            ///< A - acknowledgment required flag
-  uint8_t       m_prefixSize;       ///< Prefix Size
-  uint8_t       m_hopCount;         ///< Hop Count
+  uint8_t       m_flags;                  ///< A - acknowledgment required flag
+  uint8_t       m_prefixSize;         ///< Prefix Size
+  uint8_t             m_hopCount;         ///< Hop Count
   Ipv4Address   m_dst;              ///< Destination IP Address
   uint32_t      m_dstSeqNo;         ///< Destination Sequence Number
-  Ipv4Address   m_origin;           ///< Source IP Address
+  Ipv4Address     m_origin;           ///< Source IP Address
   uint32_t      m_lifeTime;         ///< Lifetime (in milliseconds)
-  uint32_t      m_etxMetrix;        ///< ETX metrix
+  uint32_t      m_etxMetric;        ///< ETX metric
 };
 
+/**
+  * \brief Stream output operator
+  * \param os output stream
+  * \return updated stream
+  */
 std::ostream & operator<< (std::ostream & os, RrepHeader const &);
 
 /**
@@ -247,10 +549,13 @@ std::ostream & operator<< (std::ostream & os, RrepHeader const &);
 class RrepAckHeader : public Header
 {
 public:
-  /// c-tor
+  /// constructor
   RrepAckHeader ();
 
-  // Header serialization/deserialization
+  /**
+   * \brief Get the type ID.
+   * \return the object TypeId
+   */
   static TypeId GetTypeId ();
   TypeId GetInstanceTypeId () const;
   uint32_t GetSerializedSize () const;
@@ -258,10 +563,21 @@ public:
   uint32_t Deserialize (Buffer::Iterator start);
   void Print (std::ostream &os) const;
 
+  /**
+   * \brief Comparison operator
+   * \param o RREP header to compare
+   * \return true if the RREQ headers are equal
+   */
   bool operator== (RrepAckHeader const & o) const;
 private:
-  uint8_t       m_reserved;
+  uint8_t       m_reserved; ///< Not used (must be 0)
 };
+
+/**
+  * \brief Stream output operator
+  * \param os output stream
+  * \return updated stream
+  */
 std::ostream & operator<< (std::ostream & os, RrepAckHeader const &);
 
 
@@ -287,10 +603,13 @@ std::ostream & operator<< (std::ostream & os, RrepAckHeader const &);
 class RerrHeader : public Header
 {
 public:
-  /// c-tor
+  /// constructor
   RerrHeader ();
 
-  // Header serialization/deserialization
+  /**
+   * \brief Get the type ID.
+   * \return the object TypeId
+   */
   static TypeId GetTypeId ();
   TypeId GetInstanceTypeId () const;
   uint32_t GetSerializedSize () const;
@@ -299,32 +618,61 @@ public:
   void Print (std::ostream &os) const;
 
   // No delete flag
+  /**
+   * \brief Set the no delete flag
+   * \param f the no delete flag
+   */
   void SetNoDelete (bool f);
+  /**
+   * \brief Get the no delete flag
+   * \return the no delete flag
+   */
   bool GetNoDelete () const;
 
   /**
-   * Add unreachable node address and its sequence number in RERR header
-   *\return false if we already added maximum possible number of unreachable destinations
+   * \brief Add unreachable node address and its sequence number in RERR header
+   * \param dst unreachable IPv4 address
+   * \param seqNo unreachable sequence number
+   * \return false if we already added maximum possible number of unreachable destinations
    */
   bool AddUnDestination (Ipv4Address dst, uint32_t seqNo);
-  /** Delete pair (address + sequence number) from REER header, if the number of unreachable destinations > 0
+  /**
+   * \brief Delete pair (address + sequence number) from REER header, if the number of unreachable destinations > 0
+   * \param un unreachable pair (address + sequence number)
    * \return true on success
    */
   bool RemoveUnDestination (std::pair<Ipv4Address, uint32_t> & un);
   /// Clear header
   void Clear ();
-  /// Return number of unreachable destinations in RERR message
-  uint8_t GetDestCount () const { return (uint8_t)m_unreachableDstSeqNo.size (); }
+  /**
+   * \returns number of unreachable destinations in RERR message
+   */
+  uint8_t GetDestCount () const
+  {
+    return (uint8_t)m_unreachableDstSeqNo.size ();
+  }
+
+  /**
+   * \brief Comparison operator
+   * \param o RERR header to compare
+   * \return true if the RERR headers are equal
+   */
   bool operator== (RerrHeader const & o) const;
 private:
   uint8_t m_flag;            ///< No delete flag
-  uint8_t m_reserved;        ///< Not used
+  uint8_t m_reserved;        ///< Not used (must be 0)
 
   /// List of Unreachable destination: IP addresses and sequence numbers
   std::map<Ipv4Address, uint32_t> m_unreachableDstSeqNo;
 };
 
+/**
+  * \brief Stream output operator
+  * \param os output stream
+  * \return updated stream
+  */
 std::ostream & operator<< (std::ostream & os, RerrHeader const &);
+
 
 
 /**
@@ -334,22 +682,30 @@ std::ostream & operator<< (std::ostream & os, RerrHeader const &);
   0                   1                   2                   3
   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-  |     Type      |     LPP ID    |   Number of Nighbors (n)      |
+  |     Type      |     LPP ID    |     xxxxxxxxxxxxxxxxxxxxx     |
   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
   |                   Originator IP Address                       |
   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
   |                 Originator Sequence Number                    |
   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-  |                 n * Neighbor IP Address                       |
+  |   Number of Neighbors (n)    |    xxxxxxxxxxxxxxxxxxxxxx     |
   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-  |n*neig. LPP cnt|  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  |
+  |                 Neighbor IP Address (1)                      |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  | LPP cnt (1) |   xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx   |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |                        ...                                    |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |                 Neighbor IP Address (n)                      |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  | LPP cnt (2)   | xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx   |
   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    \endverbatim
 */
 class LppHeader : public Header 
 {
 public:
-  /// c-tor
+  /// constructor
   LppHeader ();
 
   // Header serialization/deserialization
@@ -361,13 +717,40 @@ public:
   void Print (std::ostream &os) const;
 
   // Fields
-  void SetLppId (uint8_t count) { m_lppId = count; }
-  uint8_t GetLppId () const { return m_lppId; }
-  void SetOriginAddress (Ipv4Address a) { m_originAddr = a; }
-  Ipv4Address GetOriginAddress () const { return m_originAddr; }
-  void SetOriginSeqno (uint32_t seqno) { m_originSeqno = seqno; }
-  uint32_t GetOriginSeqno () const { return m_originSeqno; }
-  uint8_t GetNumberNeighbors () const { return (uint16_t)m_neighborsLppCnt.size (); }
+  void SetLppId (uint8_t count) 
+  {
+	  m_lppId = count;
+  }
+  
+  uint8_t GetLppId () const
+  {
+	  return m_lppId;
+  }
+  
+  void SetOriginAddress (Ipv4Address a)
+  {
+	  m_originAddr = a;
+  }
+  
+  Ipv4Address GetOriginAddress () const
+  {
+	  return m_originAddr;
+  }
+  
+  void SetOriginSeqno (uint32_t seqno) 
+  {
+	  m_originSeqno = seqno;
+  }
+  
+  uint32_t GetOriginSeqno () const 
+  {
+	  return m_originSeqno;
+  }
+  
+  uint16_t GetNumberNeighbors () const 
+  {
+	  return (uint16_t)m_neighborsLppCnt.size ();
+  }
 
   /// Control neighbors list
   bool AddToNeighborsList (Ipv4Address neighbor, uint8_t lppCnt);
@@ -375,6 +758,7 @@ public:
   void ClearNeighborsList ();
 
   bool operator== (LppHeader const & o) const;
+
 private:
   uint8_t       m_lppId;          ///< LPP ID
   Ipv4Address    m_originAddr;     ///< Originator IP Address
@@ -386,7 +770,21 @@ private:
 
 std::ostream & operator<< (std::ostream & os, LppHeader const &);
 
-} // aodv namespace
-} // ns3 namespace
+
+
+}  // namespace aodv
+}  // namespace ns3
+
+
+
+
+
+
+
+
+
+
+
+
 
 #endif /* AODVPACKET_H */

@@ -265,8 +265,8 @@ RoutingProtocol::GetTypeId (void)
                    MakeBooleanChecker ())
     .AddAttribute ("DestinationOnly", "Indicates only the destination may respond to this RREQ.",
                    BooleanValue (true),
-                   MakeBooleanAccessor (&RoutingProtocol::SetDesinationOnlyFlag,
-                                        &RoutingProtocol::GetDesinationOnlyFlag),
+                   MakeBooleanAccessor (&RoutingProtocol::SetDestinationOnlyFlag,
+                                        &RoutingProtocol::GetDestinationOnlyFlag),
                    MakeBooleanChecker ())
     .AddAttribute ("EnableHello", "Indicates whether a hello messages enable.",
                    BooleanValue (false),
@@ -333,11 +333,11 @@ RoutingProtocol::DoDispose ()
 }
 
 void
-RoutingProtocol::PrintRoutingTable (Ptr<OutputStreamWrapper> stream) const
+RoutingProtocol::PrintRoutingTable (Ptr<OutputStreamWrapper> stream,Time::Unit unit) const
 {
   *stream->GetStream () << "Node: " << m_ipv4->GetObject<Node> ()->GetId ()
-                        << "; Time: " << Now().As (Time::S)
-                        << ", Local time: " << GetObject<Node> ()->GetLocalTime ().As (Time::S)
+                        << "; Time: " << Now().As (unit)
+                        << ", Local time: " << GetObject<Node> ()->GetLocalTime ().As (unit)
                         << ", AODV Routing table" << std::endl;
 
   m_routingTable.Print (stream);
@@ -675,8 +675,8 @@ RoutingProtocol::NotifyInterfaceUp (uint32_t i)
                                              UdpSocketFactory::GetTypeId ());
   NS_ASSERT (socket != 0);
   socket->SetRecvCallback (MakeCallback (&RoutingProtocol::RecvAodv, this));
-  socket->Bind (InetSocketAddress (iface.GetLocal (), AODV_PORT));
   socket->BindToNetDevice (l3->GetNetDevice (i));
+  socket->Bind (InetSocketAddress (iface.GetLocal (), AODV_PORT));
   socket->SetAllowBroadcast (true);
   socket->SetIpRecvTtl (true);
   m_socketAddresses.insert (std::make_pair (socket, iface));
@@ -686,8 +686,8 @@ RoutingProtocol::NotifyInterfaceUp (uint32_t i)
                                  UdpSocketFactory::GetTypeId ());
   NS_ASSERT (socket != 0);
   socket->SetRecvCallback (MakeCallback (&RoutingProtocol::RecvAodv, this));
-  socket->Bind (InetSocketAddress (iface.GetBroadcast (), AODV_PORT));
   socket->BindToNetDevice (l3->GetNetDevice (i));
+  socket->Bind (InetSocketAddress (iface.GetBroadcast (), AODV_PORT));
   socket->SetAllowBroadcast (true);
   socket->SetIpRecvTtl (true);
   m_socketSubnetBroadcastAddresses.insert (std::make_pair (socket, iface));
@@ -777,8 +777,8 @@ RoutingProtocol::NotifyAddAddress (uint32_t i, Ipv4InterfaceAddress address)
                                                      UdpSocketFactory::GetTypeId ());
           NS_ASSERT (socket != 0);
           socket->SetRecvCallback (MakeCallback (&RoutingProtocol::RecvAodv,this));
-          socket->Bind (InetSocketAddress (iface.GetLocal (), AODV_PORT));
           socket->BindToNetDevice (l3->GetNetDevice (i));
+          socket->Bind (InetSocketAddress (iface.GetLocal (), AODV_PORT));
           socket->SetAllowBroadcast (true);
           m_socketAddresses.insert (std::make_pair (socket, iface));
 
@@ -787,8 +787,8 @@ RoutingProtocol::NotifyAddAddress (uint32_t i, Ipv4InterfaceAddress address)
                                                        UdpSocketFactory::GetTypeId ());
           NS_ASSERT (socket != 0);
           socket->SetRecvCallback (MakeCallback (&RoutingProtocol::RecvAodv, this));
-          socket->Bind (InetSocketAddress (iface.GetBroadcast (), AODV_PORT));
           socket->BindToNetDevice (l3->GetNetDevice (i));
+          socket->Bind (InetSocketAddress (iface.GetBroadcast (), AODV_PORT));
           socket->SetAllowBroadcast (true);
           socket->SetIpRecvTtl (true);
           m_socketSubnetBroadcastAddresses.insert (std::make_pair (socket, iface));
@@ -836,8 +836,8 @@ RoutingProtocol::NotifyRemoveAddress (uint32_t i, Ipv4InterfaceAddress address)
           NS_ASSERT (socket != 0);
           socket->SetRecvCallback (MakeCallback (&RoutingProtocol::RecvAodv, this));
           // Bind to any IP address so that broadcasts can be received
-          socket->Bind (InetSocketAddress (iface.GetLocal (), AODV_PORT));
           socket->BindToNetDevice (l3->GetNetDevice (i));
+          socket->Bind (InetSocketAddress (iface.GetLocal (), AODV_PORT));
           socket->SetAllowBroadcast (true);
           socket->SetIpRecvTtl (true);
           m_socketAddresses.insert (std::make_pair (socket, iface));
@@ -847,8 +847,8 @@ RoutingProtocol::NotifyRemoveAddress (uint32_t i, Ipv4InterfaceAddress address)
                                                        UdpSocketFactory::GetTypeId ());
           NS_ASSERT (socket != 0);
           socket->SetRecvCallback (MakeCallback (&RoutingProtocol::RecvAodv, this));
-          socket->Bind (InetSocketAddress (iface.GetBroadcast (), AODV_PORT));
           socket->BindToNetDevice (l3->GetNetDevice (i));
+          socket->Bind (InetSocketAddress (iface.GetBroadcast (), AODV_PORT));
           socket->SetAllowBroadcast (true);
           socket->SetIpRecvTtl (true);
           m_socketSubnetBroadcastAddresses.insert (std::make_pair (socket, iface));
@@ -996,7 +996,7 @@ RoutingProtocol::SendRequest (Ipv4Address dst)
     }
 
   if (m_gratuitousReply)
-    rreqHeader.SetGratiousRrep (true);
+    rreqHeader.SetGratuitousRrep (true);
   if (m_destinationOnly)
     rreqHeader.SetDestinationOnly (true);
 
@@ -1446,7 +1446,7 @@ RoutingProtocol::RecvRequest (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address s
           if (!rreqHeader.GetDestinationOnly () && toDst.GetFlag () == VALID)
             {
               m_routingTable.LookupRoute (origin, toOrigin);
-              SendReplyByIntermediateNode (toDst, toOrigin, rreqHeader.GetGratiousRrep ());
+              SendReplyByIntermediateNode (toDst, toOrigin, rreqHeader.GetGratuitousRrep ());
               return;
             }
           // Update seqno and valid fileds in the RREQ packet for forwarding

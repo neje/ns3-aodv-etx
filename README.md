@@ -1,7 +1,10 @@
 # ns3-aodv-etx
 This project implements ETX metrix in AODV routing protocol in NS3 simulator.
-Project is still in development phase. Expected to be finalized in november 2017.
+Project is work in progress. Updated to work with 3.28 release.
 
-This implementation is based on NS-3.26.
-To try how it works reader shuld delete all files from aodv folder in ns-3.26 instalation (folder "/ns-3.26/src/aodv"). Then copy all files from aodv folder from this repository to aodv folder in your ns-3.26 instalaltion.
-Testing example: Copy file "/scratch/ideal-8node-floor-v01-00.cc" from this repository to your ns-3.26 folder "/ns-3.26/scratch". Change directory to "/ns-3.26" and enter command "./waf --run ideal-8node-floor-v01-00" to run this example.
+To try how it works, you should do the following:
+1) Delete all files from folder /ns-3.28/src/aodv/model in your ns-3 instalation (save these files if you want to restore them later);
+2) Then copy all files from folder aodv/model from this repository to folder /ns-3.28/src/aodv/model in your ns-3 instalaltion;
+3) Do the same with file wscript from folder aodv from this repository to folder /ns-3.28/src/aodv in your ns-3 instalaltion;
+4) Write a script that uses aodv routing protocol and you are ready to go. You can use script file provided for you in folder scratch. Put it in your scratch folder and run.
+
