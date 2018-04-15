@@ -41,6 +41,7 @@
 #include "ns3/ipv4-l3-protocol.h"
 #include <map>
 #include "aodv-neighbor-etx.h"
+#include "ns3/traced-callback.h"
 
 namespace ns3 {
 namespace aodv {
@@ -435,6 +436,10 @@ private:
   Ptr<UniformRandomVariable> m_uniformRandomVariable;
   /// Keep track of the last bcast time
   Time m_lastBcastTime;
+
+  /// Traced Callback: transmitted packets.
+  TracedCallback<Ptr<const Packet> > m_txTrace; // trace
+
 };
 
 } //namespace aodv
