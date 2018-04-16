@@ -41,7 +41,7 @@
 #include "ns3/ipv4-l3-protocol.h"
 #include <map>
 #include "aodv-neighbor-etx.h"
-#include "ns3/traced-callback.h"
+#include "ns3/traced-callback.h" // trace
 
 namespace ns3 {
 namespace aodv {

@@ -248,6 +248,7 @@ public:
   {
     return m_origin;
   }
+
   /**
    * \brief Set the origin sequence number
    * \param s the origin sequence number
@@ -256,6 +257,7 @@ public:
   {
     m_originSeqNo = s;
   }
+
   /**
    * \brief Get the origin sequence number
    * \return the origin sequence number
@@ -264,7 +266,7 @@ public:
   {
     return m_originSeqNo;
   }
- 
+
   /**
    * \brief Set the ETX metric
    * \param the ETX metric
