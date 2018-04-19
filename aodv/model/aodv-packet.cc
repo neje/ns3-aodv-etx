@@ -726,7 +726,7 @@ LppHeader::GetInstanceTypeId () const
 uint32_t
 LppHeader::GetSerializedSize () const
 {
-  return (11 + 5 * GetNumberNeighbors ());
+  return (10 + 5 * GetNumberNeighbors ());
 }
 
 void
@@ -735,7 +735,7 @@ LppHeader::Serialize (Buffer::Iterator i ) const
   i.WriteU8 (m_lppId);
   WriteTo (i, m_originAddr);
   i.WriteHtonU32 (m_originSeqno);
-  i.WriteHtonU16 (GetNumberNeighbors ());
+  i.WriteU8 (GetNumberNeighbors ());
   std::map<Ipv4Address, uint8_t>::const_iterator j;
   for (j = m_neighborsLppCnt.begin (); j != m_neighborsLppCnt.end (); ++j)
     {
@@ -751,7 +751,7 @@ LppHeader::Deserialize (Buffer::Iterator start )
   m_lppId = i.ReadU8 ();
   ReadFrom (i, m_originAddr);
   m_originSeqno = i.ReadNtohU32 ();
-  uint16_t numberNeighbors = i.ReadNtohU16 ();
+  uint8_t numberNeighbors = i.ReadU8 ();
   m_neighborsLppCnt.clear ();
   Ipv4Address neighborAddr;
   uint8_t lppCnt;
@@ -789,7 +789,7 @@ LppHeader::AddToNeighborsList (Ipv4Address neighbor, uint8_t lppCnt)
      return true;
   }
 
-  NS_ASSERT (GetNumberNeighbors () < 65535); // can't support more than 2^16 - 1 neighbors
+  NS_ASSERT (GetNumberNeighbors () < 255); // can't support more than 2^8 - 1 neighbors
   m_neighborsLppCnt.insert (std::make_pair (neighbor, lppCnt));
   return true;
 }

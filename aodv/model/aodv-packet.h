@@ -690,7 +690,7 @@ std::ostream & operator<< (std::ostream & os, RerrHeader const &);
   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
   |                 Originator Sequence Number                    |
   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-  |   Number of Neighbors (n)    |    xxxxxxxxxxxxxxxxxxxxxx     |
+  |Num. Neigh. (n)|    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx     |
   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
   |                 Neighbor IP Address (1)                      |
   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -751,7 +751,7 @@ public:
   
   uint16_t GetNumberNeighbors () const 
   {
-	  return (uint16_t)m_neighborsLppCnt.size ();
+	  return (uint8_t)m_neighborsLppCnt.size ();
   }
 
   /// Control neighbors list
