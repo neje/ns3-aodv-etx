@@ -2054,7 +2054,7 @@ RoutingProtocol::SendLpp ()
       //NS_LOG_DEBUG ("LPP send: time=" << Simulator::Now ().GetSeconds () << " s, " << "source=" << iface.GetLocal ());
       m_nbEtx.FillLppCntData (lppHeader);
 
-      Ptr<Packet> packet = Create<Packet> (134); // LPP packets use 134B dummy data payload
+      Ptr<Packet> packet = Create<Packet> (); // LPP packets use 0B dummy data payload
       SocketIpTtlTag tag;
       tag.SetTtl (1);
       packet->AddPacketTag (tag);
