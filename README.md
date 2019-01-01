@@ -10,4 +10,4 @@ To try how it works, you should do the following:
 
 PUBLICATIONS:
 1. Telfor Journal, http://journal.telfor.rs/Published/Vol10No1/Vol10No1_A4.pdf
-2. Telfor conference, 
+2. Telfor conference, https://ieeexplore.ieee.org/document/8249315, DOI: 10.1109/TELFOR.2017.8249315
