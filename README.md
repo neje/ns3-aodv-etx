@@ -8,3 +8,6 @@ To try how it works, you should do the following:
 3) Do the same with file wscript from folder aodv from this repository to folder /ns-3.28/src/aodv in your ns-3 instalaltion;
 4) Write a script that uses aodv routing protocol and you are ready to go. You can use script file provided for you in folder scratch. Put it in your scratch folder and run.
 
+PUBLICATIONS:
+1. Telfor Journal, http://journal.telfor.rs/Published/Vol10No1/Vol10No1_A4.pdf
+2. Telfor conference, 
