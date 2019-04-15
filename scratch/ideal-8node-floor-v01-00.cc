@@ -42,7 +42,7 @@
 
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE ("EtfFloor");
+NS_LOG_COMPONENT_DEFINE ("Ideal8nodes");
 
 void
 PacketSinkTraceSink (Ptr<const Packet> packet, const Address &from)
@@ -210,23 +210,15 @@ main (int argc, char *argv[])
   Ptr <FlowMonitor> flowMon = flowMonHlp.InstallAll ();
   
   // NetAnim simulator
-  AnimationInterface anim ("etf-floor-netanim.xml");
-  anim.EnablePacketMetadata (true);
+  AnimationInterface anim ("netanim.xml");
+  //anim.EnablePacketMetadata (true);
   anim.SetMobilityPollInterval (Seconds (1));
-  anim.SetBackgroundImage("hodnik.png",0,0,0.02578,0.0243,1);
-  uint32_t nodeImage= anim.AddResource("meshnode.png");
-  
-  for (uint32_t n = 0; n <= 7; n++)
-    {
-      anim.UpdateNodeImage(n,nodeImage);
-      anim.UpdateNodeSize(n,3,3);
-    }
   
   // Output config store to txt/xml format
-  Config::SetDefault ("ns3::ConfigStore::Filename", StringValue ("etf-floor-attributes.txt"));
+  Config::SetDefault ("ns3::ConfigStore::Filename", StringValue ("attributes.txt"));
   Config::SetDefault ("ns3::ConfigStore::FileFormat", StringValue ("RawText"));
-//  Config::SetDefault ("ns3::ConfigStore::Filename", StringValue ("etf-floor-attributes.xml"));
-//  Config::SetDefault ("ns3::ConfigStore::FileFormat", StringValue ("Xml"));
+  //Config::SetDefault ("ns3::ConfigStore::Filename", StringValue ("etf-floor-attributes.xml"));
+  //Config::SetDefault ("ns3::ConfigStore::FileFormat", StringValue ("Xml"));
   Config::SetDefault ("ns3::ConfigStore::Mode", StringValue ("Save"));
   ConfigStore outputConfig;
   outputConfig.ConfigureDefaults ();
@@ -235,7 +227,7 @@ main (int argc, char *argv[])
   Simulator::Stop (Seconds (130.0));
   Simulator::Run ();
   
-  flowMon -> SerializeToXmlFile ("etf-floor-flomon.xml", true, true);
+  flowMon -> SerializeToXmlFile ("flomon.xml", true, true);
   Simulator::Destroy ();
 
   return 0;
